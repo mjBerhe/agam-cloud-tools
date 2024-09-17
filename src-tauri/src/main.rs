@@ -1,12 +1,15 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::process::Command;
-use std::collections::HashMap;
+use tauri::{AppHandle, Manager};
+use std::process::{Command, Stdio};
+use std::io::Read;
+use std::io::{BufReader, BufRead};
 
 fn main() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![run_bash_script])
+    .invoke_handler(tauri::generate_handler![run_test_script])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
@@ -16,6 +19,7 @@ fn main() {
 
   // println!("{:?}", (exe_path));
 
+const TEST_SCRIPT: &str = "./../../pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/test.sh";
 const AUTOMATE_SCRIPT: &str = "./../../pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/1_Automate.sh";
 const UPLOAD_SCRIPT: &str = "./../../pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/2_1_Upload.sh";
 const REMOTE_RUN_SCRIPT: &str = "./../../pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/3_RemoteRun.sh";
@@ -23,11 +27,13 @@ const MONITOR_SCRIPT: &str = "./../../pALM2.1te/pALMLiability/pALMLauncher/Cloud
 const DOWNLOAD_SCRIPT: &str = "./../../pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/5_Download.sh";
 
 
+// this works, however the output is only sent when the whole script finishes
 #[tauri::command]
 fn run_bash_script(script_name: String) -> Result<String, String> {
   let script_path: &str;
 
   match script_name.as_str() {
+    "test" => script_path = TEST_SCRIPT,
     "automate" => script_path = AUTOMATE_SCRIPT,
     "upload" => script_path = UPLOAD_SCRIPT,
     "remote_run" => script_path = REMOTE_RUN_SCRIPT,
@@ -48,6 +54,46 @@ fn run_bash_script(script_name: String) -> Result<String, String> {
 
   println!("Script output: {}", output_string);
   Ok(output_string)
+
+}
+
+#[tauri::command]
+fn run_test_script(script_path: String, app_handle: AppHandle) -> Result<(), String> {
+  let script_path = TEST_SCRIPT;
+
+  let mut command = Command::new("bash")
+    .arg(script_path)
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .map_err(|e| format!("Failed to spawn command: {}", e))?;
+
+let mut stdout = command.stdout.unwrap();
+let mut stderr = command.stderr.unwrap();
+
+// Read and stream output in a loop
+loop {
+    let mut buffer = [0; 1024];
+    let read_bytes = stdout.read(&mut buffer).map_err(|e| format!("Failed to read stdout: {}", e))?;
+
+    if read_bytes == 0 {
+        break;
+    }
+
+    let output_str = String::from_utf8(buffer[..read_bytes].to_vec()).map_err(|e| format!("Invalid UTF-8 output: {}", e))?;
+
+    // Send output to the frontend using app_handle.emit
+    app_handle.emit_all("shell_script_output", output_str);
+}
+
+// Handle errors or incomplete output
+// let exit_status = command.wait().map_err(|e| format!("Failed to wait for command: {}", e))?;
+
+// if !exit_status.success() {
+//     // Handle errors
+// }
+
+Ok(())
 }
 
 
