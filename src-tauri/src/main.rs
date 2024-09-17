@@ -1,15 +1,16 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{AppHandle, Manager};
+use tauri::Window;
 use std::process::{Command, Stdio};
-use std::io::Read;
-use std::io::{BufReader, BufRead};
+use std::io::BufRead;
+use std::env;
+use std::path::Path;
 
 fn main() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![run_bash_script])
-    .invoke_handler(tauri::generate_handler![run_test_script])
+    .invoke_handler(tauri::generate_handler![run_bash_script_test])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
@@ -19,12 +20,12 @@ fn main() {
 
   // println!("{:?}", (exe_path));
 
-const TEST_SCRIPT: &str = "./../../pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/test.sh";
-const AUTOMATE_SCRIPT: &str = "./../../pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/1_Automate.sh";
-const UPLOAD_SCRIPT: &str = "./../../pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/2_1_Upload.sh";
-const REMOTE_RUN_SCRIPT: &str = "./../../pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/3_RemoteRun.sh";
-const MONITOR_SCRIPT: &str = "./../../pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/4_Monitor.sh";
-const DOWNLOAD_SCRIPT: &str = "./../../pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/5_Download.sh";
+const TEST_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/test.sh";
+const AUTOMATE_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/1_Automate.sh";
+const UPLOAD_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/2_1_Upload.sh";
+const REMOTE_RUN_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/3_RemoteRun.sh";
+const MONITOR_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/4_Monitor.sh";
+const DOWNLOAD_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/5_Download.sh";
 
 
 // this works, however the output is only sent when the whole script finishes
@@ -58,66 +59,45 @@ fn run_bash_script(script_name: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn run_test_script(script_path: String, app_handle: AppHandle) -> Result<(), String> {
-  let script_path = TEST_SCRIPT;
+fn run_bash_script_test(window: Window) -> Result<(), String> {
+  let script_path = UPLOAD_SCRIPT;
+  let script_dir = Path::new(script_path).parent().unwrap();
 
-  let mut command = Command::new("bash")
-    .arg(script_path)
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped())
-    .spawn()
-    .map_err(|e| format!("Failed to spawn command: {}", e))?;
+  // Spawn the shell script process
+  let mut child = Command::new("bash")
+  // .arg("-li")
+  // .arg("-c")
+  .arg(script_path)
+  .current_dir(script_dir)
+  .envs(env::vars())
+  .stdout(Stdio::piped()) // Pipe stdout
+  .spawn()
+  .map_err(|e| e.to_string())?;
 
-let mut stdout = command.stdout.unwrap();
-let mut stderr = command.stderr.unwrap();
+  let stdout = child.stdout.as_mut().ok_or("Failed to open stdout")?;
+  let reader = std::io::BufReader::new(stdout);
 
-// Read and stream output in a loop
-loop {
-    let mut buffer = [0; 1024];
-    let read_bytes = stdout.read(&mut buffer).map_err(|e| format!("Failed to read stdout: {}", e))?;
-
-    if read_bytes == 0 {
-        break;
+  // Read lines from the script's output and emit as Tauri events
+  for line in reader.lines() {
+    match line {
+      Ok(output) => {
+        println!("Emitting: {}", output);  // Add this line to debug
+        window
+          .emit("script-output", output) // Emit event with output
+          .map_err(|e| e.to_string())?;
+      }
+      Err(e) => return Err(e.to_string()),
     }
+  }
 
-    let output_str = String::from_utf8(buffer[..read_bytes].to_vec()).map_err(|e| format!("Invalid UTF-8 output: {}", e))?;
+  // Wait for the script to finish
+  child.wait().map_err(|e| e.to_string())?;
 
-    // Send output to the frontend using app_handle.emit
-    app_handle.emit_all("shell_script_output", output_str);
+  // Emit a final event indicating the script has finished
+  window
+    .emit("script-finished", "Script completed") // Emit completion event
+    .map_err(|e| e.to_string())?;
+
+  Ok(())
 }
 
-// Handle errors or incomplete output
-// let exit_status = command.wait().map_err(|e| format!("Failed to wait for command: {}", e))?;
-
-// if !exit_status.success() {
-//     // Handle errors
-// }
-
-Ok(())
-}
-
-
-
-// fn main() -> Result<(), String> {
-//   let automate_path = "/C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/test.sh";
-//   let test_path = "./../../pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/1_Automate.sh";
-
-//   let output = match Command::new("bash")
-//     .arg(automate_path)
-//     .output() {
-//       Ok(output) => output,
-//       Err(err) => return Err(format!("Failed to run script: {}", err)),
-//     };
-
-//     if output.status.success() {
-//       println!("Script ran successfully.");
-//   } else {
-//       println!("Script failed with exit code: {}", output.status);
-//   }
-
-//     let output_string = String::from_utf8(output.stdout)
-//     .map_err(|err| format!("Failed to convert output to string: {}", err))?;
-
-//     println!("Script output: {}", output_string);
-//     Ok(())
-// }

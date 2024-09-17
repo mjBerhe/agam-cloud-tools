@@ -5,7 +5,7 @@ import "./App.css";
 import { invoke } from "@tauri-apps/api";
 import { open } from "@tauri-apps/api/dialog";
 import { readTextFile, readDir, FileEntry } from "@tauri-apps/api/fs";
-import { listen } from "@tauri-apps/api/event";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
 import { CleanedOutput } from "./components/cleanedOutput";
 
@@ -27,9 +27,6 @@ function App() {
   const [testOutput, setTestOutput] = useState<string>();
   const [automateOutput, setAutomateOutput] = useState<string>();
   const [uploadOutput, setUploadOutput] = useState<string>();
-
-  //TODO
-  //FIND OUT HOW TAURI EVENTS WORK!!!
 
   const handleRunScript = async (script: Script) => {
     setLoading(true);
@@ -74,16 +71,47 @@ function App() {
     }
   };
 
-  // splits file contents line by line
+  const [output, setOutput] = useState<string[]>([]);
+  const [isRunning, setIsRunning] = useState<boolean>(false);
 
   useEffect(() => {
-    const test = async () => {
-      return await listen("shell_script_output", (event) => {
-        console.log(event);
-      });
+    // Listen for the 'script-output' event
+    const unlistenOutput: Promise<UnlistenFn> = listen<string>(
+      "script-output",
+      (event) => {
+        console.log(event.payload);
+        setOutput((prevOutput) => [...prevOutput, event.payload]);
+      }
+    );
+
+    // Listen for the 'script-finished' event
+    const unlistenFinished: Promise<UnlistenFn> = listen<string>(
+      "script-finished",
+      (event) => {
+        setIsRunning(false);
+        console.log(event.payload);
+      }
+    );
+
+    // Clean up the listeners
+    return () => {
+      if (unlistenOutput) unlistenOutput.then((fn) => fn());
+      if (unlistenFinished) unlistenFinished.then((fn) => fn());
     };
-    const unlisten = test();
   }, []);
+
+  const runScript = () => {
+    setOutput([]);
+    setIsRunning(true);
+    // Call the Tauri command to run the shell script
+    invoke("run_bash_script_test")
+      .then(() => {
+        console.log("Shell script started");
+      })
+      .catch((err) => console.error(err));
+  };
+
+  console.log(output, isRunning);
 
   return (
     <main className="flex min-h-screen flex-col items-center text-white w-screen bg-gray-800">
@@ -97,16 +125,22 @@ function App() {
 
         <div className="flex flex-col items-center">
           <button
-            onClick={() => !loading && handleRunScript("test")}
-            disabled={loading}
+            onClick={() => runScript()}
+            disabled={isRunning}
             className="border px-4 py-2 rounded-lg font-medium min-w-[200px] bg-gray-900 hover:bg-gray-900/80 disabled:opacity-50 border-gray-600"
           >
-            Run Automate
+            Run Test
           </button>
-          {automateOutput && <CleanedOutput output={automateOutput} />}
+
+          <div className="text-white flex flex-col">
+            {output.map((x) => (
+              <span key={x}>{x}</span>
+            ))}
+          </div>
+          {/* {automateOutput && <CleanedOutput output={automateOutput} />} */}
         </div>
 
-        <div className="flex flex-col items-center">
+        {/* <div className="flex flex-col items-center">
           <button
             onClick={() => !loading && handleRunScript("upload")}
             disabled={loading}
@@ -115,7 +149,7 @@ function App() {
             Run Upload
           </button>
           {uploadOutput && <CleanedOutput output={uploadOutput} />}
-        </div>
+        </div> */}
       </div>
     </main>
   );
