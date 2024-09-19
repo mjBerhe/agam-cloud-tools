@@ -3,153 +3,249 @@ import { useState, useEffect } from "react";
 // import viteLogo from "/vite.svg";
 import "./App.css";
 import { invoke } from "@tauri-apps/api";
-import { open } from "@tauri-apps/api/dialog";
-import { readTextFile, readDir, FileEntry } from "@tauri-apps/api/fs";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
-import { CleanedOutput } from "./components/cleanedOutput";
-
-// const testScript = "./src/test.sh";
-// const automateScript = "./src/1_Automate.sh";
-
-const testScript = "test";
-const automateScript = "automate";
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
+// import { CleanedOutput } from "./components/cleanedOutput";
+import { Button } from "./components/Button";
 
 type Script = "test" | "automate" | "upload" | "remote_run" | "monitor" | "download";
 
+const tabs = [
+  {
+    name: "Test",
+    id: -1,
+  },
+  {
+    name: "Automate",
+    id: 0,
+  },
+  {
+    name: "Upload",
+    id: 1,
+  },
+  {
+    name: "Remote Run",
+    id: 2,
+  },
+  {
+    name: "Monitor",
+    id: 3,
+  },
+  {
+    name: "Download",
+    id: 4,
+  },
+];
+
+const scripts: Script[] = [
+  "test",
+  "automate",
+  "upload",
+  "remote_run",
+  "monitor",
+  "download",
+];
+
 function App() {
-  const [selectedFile, setSelectedFile] = useState<{
-    pathName: string;
-    contents: string;
-  }>();
-
-  const [loading, setLoading] = useState<boolean>(false);
-  const [testOutput, setTestOutput] = useState<string>();
-  const [automateOutput, setAutomateOutput] = useState<string>();
-  const [uploadOutput, setUploadOutput] = useState<string>();
-
-  const handleRunScript = async (script: Script) => {
-    setLoading(true);
-    try {
-      if (script === "test") {
-        const result = await invoke("run_bash_script", {
-          scriptName: testScript,
-        });
-        console.log(result);
-        setAutomateOutput(result as string);
-        setLoading(false);
-      }
-      if (script === "automate") {
-        const result = await invoke("run_bash_script", {
-          scriptName: automateScript,
-        });
-        setAutomateOutput(result as string);
-        setLoading(false);
-      }
-      setLoading(false);
-      // console.log(result);
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
-  };
-
-  const handleOpenFile = async () => {
-    try {
-      const selectedPath = await open({
-        multiple: false,
-        title: "Open Text File",
-      });
-      // if null or multiple files selected, return
-      if (!selectedPath || Array.isArray(selectedPath)) return;
-      const contents = await readTextFile(selectedPath);
-      console.log(selectedPath, contents);
-      setSelectedFile({ pathName: selectedPath, contents: contents });
-      // now we have the file contents
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const [output, setOutput] = useState<string[]>([]);
-  const [isRunning, setIsRunning] = useState<boolean>(false);
+  const [outputs, setOutputs] = useState({
+    test: [],
+    automate: [],
+    upload: [],
+    remote_run: [],
+    monitor: [],
+    download: [],
+  });
+  // const [buffer, setBuffer] = useState<string[]>([]);
+  // const [isRunning, setIsRunning] = useState<boolean>(false);
+  const [isRunning, setIsRunning] = useState({
+    test: false,
+    automate: false,
+    upload: false,
+    remote_run: false,
+    monitor: false,
+    download: false,
+  });
 
   useEffect(() => {
-    // Listen for the 'script-output' event
-    const unlistenOutput: Promise<UnlistenFn> = listen<string>(
-      "script-output",
-      (event) => {
-        console.log(event.payload);
-        setOutput((prevOutput) => [...prevOutput, event.payload]);
-      }
-    );
+    const unlistenFns: Record<
+      string,
+      { output: Promise<UnlistenFn>; finished: Promise<UnlistenFn> }
+    > = {};
 
-    // Listen for the 'script-finished' event
-    const unlistenFinished: Promise<UnlistenFn> = listen<string>(
-      "script-finished",
-      (event) => {
-        setIsRunning(false);
-        console.log(event.payload);
-      }
-    );
+    scripts.forEach((scriptName) => {
+      const unlistenOutput = listen<string>(`script-output-${scriptName}`, (e) => {
+        // setOutput((prevOutput) => [...prevOutput, e.payload]);
+        setOutputs((prev) => ({
+          ...prev,
+          [scriptName]: [...prev[scriptName], e.payload],
+        }));
+        console.log(e.payload);
+      });
 
-    // Clean up the listeners
+      const unlistenFinished = listen<string>(`script-finished-${scriptName}`, (e) => {
+        console.log(e.payload);
+        setIsRunning((prev) => ({ ...prev, [scriptName]: false }));
+      });
+
+      unlistenFns[scriptName] = { output: unlistenOutput, finished: unlistenFinished };
+    });
+
+    // Cleanup function
     return () => {
-      if (unlistenOutput) unlistenOutput.then((fn) => fn());
-      if (unlistenFinished) unlistenFinished.then((fn) => fn());
+      scripts.forEach((scriptName) => {
+        // Unlisten to each event
+        const { output, finished } = unlistenFns[scriptName];
+        output.then((fn) => fn());
+        finished.then((fn) => fn());
+      });
     };
   }, []);
 
-  const runScript = () => {
-    setOutput([]);
-    setIsRunning(true);
+  // Clean up the listeners
+  // return () => {
+  //   scripts.forEach((scriptName) => {
+  //     if (unlistenOutput) unlistenOutput.then((fn) => fn());
+  //     if (unlistenFinished) unlistenFinished.then((fn) => fn());
+  //   });
+  // };
+
+  const runScript = (scriptName: Script) => {
+    setOutputs((prev) => ({ ...prev, [scriptName]: [] })); // Clear output for the script
+    setIsRunning((prev) => ({ ...prev, [scriptName]: true }));
+
     // Call the Tauri command to run the shell script
-    invoke("run_bash_script_test")
+    invoke("run_bash_script_test", { scriptName: scriptName })
       .then(() => {
-        console.log("Shell script started");
+        console.log(`$${scriptName} script started`);
       })
       .catch((err) => console.error(err));
   };
 
-  console.log(output, isRunning);
-
   return (
-    <main className="flex min-h-screen flex-col items-center text-white w-screen bg-gray-800">
-      <div className="flex flex-col gap-y-4 py-4 px-4">
-        {/* <button
-          onClick={handleOpenFile}
-          className="border border-dashed px-4 py-2 rounded-lg font-medium max-w-[180px] bg-gray-600 border-black"
-        >
-          Select Config File
-        </button> */}
-
-        <div className="flex flex-col items-center">
-          <button
-            onClick={() => runScript()}
-            disabled={isRunning}
-            className="border px-4 py-2 rounded-lg font-medium min-w-[200px] bg-gray-900 hover:bg-gray-900/80 disabled:opacity-50 border-gray-600"
-          >
-            Run Test
-          </button>
-
-          <div className="text-white flex flex-col">
-            {output.map((x) => (
-              <span key={x}>{x}</span>
-            ))}
-          </div>
-          {/* {automateOutput && <CleanedOutput output={automateOutput} />} */}
-        </div>
-
-        {/* <div className="flex flex-col items-center">
-          <button
-            onClick={() => !loading && handleRunScript("upload")}
-            disabled={loading}
-            className="border px-4 py-2 rounded-lg font-medium min-w-[200px] bg-gray-900 hover:bg-gray-900/80 disabled:opacity-50 border-gray-600"
-          >
-            Run Upload
-          </button>
-          {uploadOutput && <CleanedOutput output={uploadOutput} />}
+    <main className="container mx-auto px-4 h-screen">
+      <div className="flex flex-col gap-y-4 py-4 w-full items-center">
+        {/* <div className="">
+          <span className="text-3xl font-bold">Cloud Tools</span>
         </div> */}
+
+        <div className="w-full flex items-center justify-center mt-6">
+          <TabGroup className="w-full">
+            <TabList className="flex gap-x-4 justify-center">
+              {tabs.map((tab) => (
+                <Tab
+                  key={tab.id}
+                  className="rounded-full py-1 px-3 text-sm font-semibold text-white focus:outline-none data-[selected]:bg-white/10 data-[hover]:bg-white/5 data-[selected]:data-[hover]:bg-white/10 data-[focus]:outline-1 data-[focus]:outline-white"
+                >
+                  {tab.name}
+                </Tab>
+              ))}
+            </TabList>
+
+            <TabPanels className="mt-3">
+              <TabPanel className="flex flex-col py-2">
+                <div className="bg-white/5 min-h-[360px] rounded-xl py-4 px-4 break-words ">
+                  <div className="flex flex-col">
+                    {outputs["test"].map((x) => (
+                      <span key={x}>{x}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex mt-4 justify-center">
+                  <Button onClick={() => runScript("test")} disabled={isRunning["test"]}>
+                    Run Test Script
+                  </Button>
+                </div>
+              </TabPanel>
+              <TabPanel className="flex flex-col py-2">
+                <div className="bg-white/5 min-h-[360px] rounded-xl py-4 px-4 break-words ">
+                  <div className="flex flex-col">
+                    {outputs["automate"].map((x) => (
+                      <span key={x}>{x}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex mt-4 justify-center">
+                  <Button
+                    onClick={() => runScript("automate")}
+                    disabled={isRunning["automate"]}
+                  >
+                    Run Automate Script
+                  </Button>
+                </div>
+              </TabPanel>
+              <TabPanel className="flex flex-col py-2">
+                <div className="bg-white/5 h-[360px] rounded-xl py-4 px-4 break-words] overflow-y-auto">
+                  <div className="flex flex-col">
+                    {outputs["upload"].map((x) => (
+                      <span key={x}>{x}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex mt-4 justify-center">
+                  <Button
+                    onClick={() => runScript("upload")}
+                    disabled={isRunning["upload"]}
+                  >
+                    Run Upload Script
+                  </Button>
+                </div>
+              </TabPanel>
+              <TabPanel className="flex flex-col py-2">
+                <div className="bg-white/5 h-[360px] rounded-xl py-4 px-4 break-words] overflow-y-auto">
+                  <div className="flex flex-col">
+                    {outputs["remote_run"].map((x) => (
+                      <span key={x}>{x}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex mt-4 justify-center">
+                  <Button
+                    onClick={() => runScript("remote_run")}
+                    disabled={isRunning["remote_run"]}
+                  >
+                    Run Remote Run Script
+                  </Button>
+                </div>
+              </TabPanel>
+              <TabPanel className="flex flex-col py-2">
+                <div className="bg-white/5 h-[360px] rounded-xl py-4 px-4 break-words] overflow-y-auto">
+                  <div className="flex flex-col">
+                    {outputs["monitor"].map((x) => (
+                      <span key={x}>{x}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex mt-4 justify-center">
+                  <Button
+                    onClick={() => runScript("monitor")}
+                    disabled={isRunning["monitor"]}
+                  >
+                    Run Monitor Script
+                  </Button>
+                </div>
+              </TabPanel>
+              <TabPanel className="flex flex-col py-2">
+                <div className="bg-white/5 h-[360px] rounded-xl py-4 px-4 break-words] overflow-y-auto">
+                  <div className="flex flex-col">
+                    {outputs["download"].map((x) => (
+                      <span key={x}>{x}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex mt-4 justify-center">
+                  <Button
+                    onClick={() => runScript("download")}
+                    disabled={isRunning["download"]}
+                  >
+                    Run Download Script
+                  </Button>
+                </div>
+              </TabPanel>
+            </TabPanels>
+          </TabGroup>
+        </div>
       </div>
     </main>
   );
