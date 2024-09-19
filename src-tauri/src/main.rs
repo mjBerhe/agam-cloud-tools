@@ -58,6 +58,20 @@ fn run_bash_script(script_name: String) -> Result<String, String> {
 
 }
 
+// #[tauri::command]
+// async fn run_monitor_script(window: Window) -> Result<(), String> {
+//   let script_path: &str = MONITOR_SCRIPT;
+//   let script_dir = Path::new(script_path).parent().unwrap();
+
+//   let mut child = Command::new("bash")
+//   .arg(script_path)
+//   .current_dir(script_dir)
+//   .envs(env::vars()) // Pass the current environment variables
+//   .stdout(Stdio::piped()) // Pipe stdout
+//   .spawn()
+//   .map_err(|e| e.to_string())?;
+// }
+
 #[tauri::command]
 async fn run_bash_script_test(window: Window, script_name: String) -> Result<(), String> {
   // Determine the script path based on the passed script_name

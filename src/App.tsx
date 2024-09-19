@@ -3,37 +3,51 @@ import { useState, useEffect } from "react";
 // import viteLogo from "/vite.svg";
 import "./App.css";
 import { invoke } from "@tauri-apps/api";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 // import { CleanedOutput } from "./components/cleanedOutput";
-import { Button } from "./components/Button";
+import { ScriptTab } from "./components/ScriptTab";
+import { Dashboard } from "./components/Dashboard";
+import { cn } from "./lib/utils";
 
-type Script = "test" | "automate" | "upload" | "remote_run" | "monitor" | "download";
+export type Script =
+  | "test"
+  | "automate"
+  | "upload"
+  | "remote_run"
+  | "monitor"
+  | "download";
+export type Tab = {
+  name: string;
+  scriptName: Script;
+  id: number;
+};
 
-const tabs = [
-  {
-    name: "Test",
-    id: -1,
-  },
+const tabs: Tab[] = [
   {
     name: "Automate",
+    scriptName: "automate",
     id: 0,
   },
   {
     name: "Upload",
+    scriptName: "upload",
     id: 1,
   },
   {
     name: "Remote Run",
+    scriptName: "remote_run",
     id: 2,
   },
   {
     name: "Monitor",
+    scriptName: "monitor",
     id: 3,
   },
   {
     name: "Download",
+    scriptName: "download",
     id: 4,
   },
 ];
@@ -43,12 +57,11 @@ const scripts: Script[] = [
   "automate",
   "upload",
   "remote_run",
-  "monitor",
+  // "monitor",
   "download",
 ];
 
 function App() {
-  const [output, setOutput] = useState<string[]>([]);
   const [outputs, setOutputs] = useState({
     test: [],
     automate: [],
@@ -57,10 +70,14 @@ function App() {
     monitor: [],
     download: [],
   });
-  // const [buffer, setBuffer] = useState<string[]>([]);
-  // const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [isRunning, setIsRunning] = useState({
-    test: false,
+  const [isRunning, setIsRunning] = useState<{ [key: string]: boolean }>({
+    automate: false,
+    upload: false,
+    remote_run: false,
+    monitor: false,
+    download: false,
+  });
+  const [isCompleted, setIsCompleted] = useState<{ [key: string]: boolean }>({
     automate: false,
     upload: false,
     remote_run: false,
@@ -74,19 +91,19 @@ function App() {
       { output: Promise<UnlistenFn>; finished: Promise<UnlistenFn> }
     > = {};
 
+    // loop over each script, and create a listener events for incoming output and a finish message
     scripts.forEach((scriptName) => {
       const unlistenOutput = listen<string>(`script-output-${scriptName}`, (e) => {
-        // setOutput((prevOutput) => [...prevOutput, e.payload]);
         setOutputs((prev) => ({
           ...prev,
           [scriptName]: [...prev[scriptName], e.payload],
         }));
-        console.log(e.payload);
       });
 
       const unlistenFinished = listen<string>(`script-finished-${scriptName}`, (e) => {
         console.log(e.payload);
         setIsRunning((prev) => ({ ...prev, [scriptName]: false }));
+        setIsCompleted((prev) => ({ ...prev, [scriptName]: true }));
       });
 
       unlistenFns[scriptName] = { output: unlistenOutput, finished: unlistenFinished };
@@ -103,14 +120,6 @@ function App() {
     };
   }, []);
 
-  // Clean up the listeners
-  // return () => {
-  //   scripts.forEach((scriptName) => {
-  //     if (unlistenOutput) unlistenOutput.then((fn) => fn());
-  //     if (unlistenFinished) unlistenFinished.then((fn) => fn());
-  //   });
-  // };
-
   const runScript = (scriptName: Script) => {
     setOutputs((prev) => ({ ...prev, [scriptName]: [] })); // Clear output for the script
     setIsRunning((prev) => ({ ...prev, [scriptName]: true }));
@@ -124,127 +133,52 @@ function App() {
   };
 
   return (
-    <main className="container mx-auto px-4 h-screen">
-      <div className="flex flex-col gap-y-4 py-4 w-full items-center">
-        {/* <div className="">
-          <span className="text-3xl font-bold">Cloud Tools</span>
-        </div> */}
+    <main className={cn("container mx-auto px-4 h-screen font-geist")}>
+      <div className="flex py-4 w-full gap-x-6">
+        <div className="flex flex-col h-full w-1/3 flex-shrink-0">
+          <span className="mt-5 text-xl font-semibold text-gray-200">Overview</span>
+          <div className="mt-5 bg-white/[3%] p-4 rounded-lg border border-zinc-700">
+            <Dashboard runningStatus={isRunning} completedStatus={isCompleted} />
+          </div>
+        </div>
 
-        <div className="w-full flex items-center justify-center mt-6">
-          <TabGroup className="w-full">
-            <TabList className="flex gap-x-4 justify-center">
-              {tabs.map((tab) => (
-                <Tab
-                  key={tab.id}
-                  className="rounded-full py-1 px-3 text-sm font-semibold text-white focus:outline-none data-[selected]:bg-white/10 data-[hover]:bg-white/5 data-[selected]:data-[hover]:bg-white/10 data-[focus]:outline-1 data-[focus]:outline-white"
-                >
-                  {tab.name}
-                </Tab>
-              ))}
-            </TabList>
+        <div className="flex flex-col justify-center w-2/3">
+          <span className="mt-5 text-xl font-semibold text-gray-200">Scripts</span>
+          <div className="mt-5 bg-white/[3%] rounded-lg border border-zinc-700">
+            <TabGroup className="w-full">
+              <TabList className="pt-1 w-full px-2">
+                {tabs.map((tab) => (
+                  <Tab
+                    key={tab.id}
+                    className={cn(
+                      "w-1/5 rounded-t-lg bg-white/[1%] px-4 py-2 text-sm font-medium cursor-pointer transition duration-100",
+                      "data-[selected]:bg-white/[5%] data-[hover]:bg-white/5 text-gray-300 data-[selected]:text-white",
+                      "focus:outline-none"
+                    )}
+                  >
+                    {tab.name}
+                  </Tab>
+                ))}
+              </TabList>
 
-            <TabPanels className="mt-3">
-              <TabPanel className="flex flex-col py-2">
-                <div className="bg-white/5 min-h-[360px] rounded-xl py-4 px-4 break-words ">
-                  <div className="flex flex-col">
-                    {outputs["test"].map((x) => (
-                      <span key={x}>{x}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex mt-4 justify-center">
-                  <Button onClick={() => runScript("test")} disabled={isRunning["test"]}>
-                    Run Test Script
-                  </Button>
-                </div>
-              </TabPanel>
-              <TabPanel className="flex flex-col py-2">
-                <div className="bg-white/5 min-h-[360px] rounded-xl py-4 px-4 break-words ">
-                  <div className="flex flex-col">
-                    {outputs["automate"].map((x) => (
-                      <span key={x}>{x}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex mt-4 justify-center">
-                  <Button
-                    onClick={() => runScript("automate")}
-                    disabled={isRunning["automate"]}
-                  >
-                    Run Automate Script
-                  </Button>
-                </div>
-              </TabPanel>
-              <TabPanel className="flex flex-col py-2">
-                <div className="bg-white/5 h-[360px] rounded-xl py-4 px-4 break-words] overflow-y-auto">
-                  <div className="flex flex-col">
-                    {outputs["upload"].map((x) => (
-                      <span key={x}>{x}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex mt-4 justify-center">
-                  <Button
-                    onClick={() => runScript("upload")}
-                    disabled={isRunning["upload"]}
-                  >
-                    Run Upload Script
-                  </Button>
-                </div>
-              </TabPanel>
-              <TabPanel className="flex flex-col py-2">
-                <div className="bg-white/5 h-[360px] rounded-xl py-4 px-4 break-words] overflow-y-auto">
-                  <div className="flex flex-col">
-                    {outputs["remote_run"].map((x) => (
-                      <span key={x}>{x}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex mt-4 justify-center">
-                  <Button
-                    onClick={() => runScript("remote_run")}
-                    disabled={isRunning["remote_run"]}
-                  >
-                    Run Remote Run Script
-                  </Button>
-                </div>
-              </TabPanel>
-              <TabPanel className="flex flex-col py-2">
-                <div className="bg-white/5 h-[360px] rounded-xl py-4 px-4 break-words] overflow-y-auto">
-                  <div className="flex flex-col">
-                    {outputs["monitor"].map((x) => (
-                      <span key={x}>{x}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex mt-4 justify-center">
-                  <Button
-                    onClick={() => runScript("monitor")}
-                    disabled={isRunning["monitor"]}
-                  >
-                    Run Monitor Script
-                  </Button>
-                </div>
-              </TabPanel>
-              <TabPanel className="flex flex-col py-2">
-                <div className="bg-white/5 h-[360px] rounded-xl py-4 px-4 break-words] overflow-y-auto">
-                  <div className="flex flex-col">
-                    {outputs["download"].map((x) => (
-                      <span key={x}>{x}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex mt-4 justify-center">
-                  <Button
-                    onClick={() => runScript("download")}
-                    disabled={isRunning["download"]}
-                  >
-                    Run Download Script
-                  </Button>
-                </div>
-              </TabPanel>
-            </TabPanels>
-          </TabGroup>
+              <TabPanels className="mt-0">
+                {/* <TabPanel>
+                <Dashboard />
+              </TabPanel> */}
+
+                {tabs.map((tab) => (
+                  <TabPanel className="pt-0" key={tab.id}>
+                    <ScriptTab
+                      tab={tab}
+                      output={outputs[tab.scriptName]}
+                      runScript={runScript}
+                      isDisabled={isRunning[tab.scriptName]}
+                    />
+                  </TabPanel>
+                ))}
+              </TabPanels>
+            </TabGroup>
+          </div>
         </div>
       </div>
     </main>
