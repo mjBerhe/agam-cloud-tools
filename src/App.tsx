@@ -13,8 +13,15 @@ import { cn } from "./lib/utils";
 import { useLogFile } from "./hooks/useLogFile";
 import { OutputTab } from "./components/OutputTab";
 import { useSlurmOutputFile } from "./hooks/useSlurmOutputFile";
+import { Log } from "./components/Log";
 
-export type Script = "automate" | "upload" | "remote_run" | "monitor" | "download";
+export type Script =
+  | "automate"
+  | "upload"
+  | "remote_run"
+  | "monitor"
+  | "download"
+  | "output";
 export type Tab = {
   name: string;
   scriptName: Script;
@@ -55,6 +62,7 @@ const scripts: Script[] = [
   "remote_run",
   // "monitor",
   "download",
+  "output",
 ];
 
 function App() {
@@ -64,6 +72,7 @@ function App() {
     upload: [],
     remote_run: [],
     download: [],
+    output: [],
   });
   const [isRunning, setIsRunning] = useState<Record<Script, boolean>>({
     monitor: false,
@@ -71,6 +80,7 @@ function App() {
     upload: false,
     remote_run: false,
     download: false,
+    output: false,
   });
   const [isCompleted, setIsCompleted] = useState<Record<Script, boolean>>({
     monitor: false,
@@ -78,6 +88,7 @@ function App() {
     upload: false,
     remote_run: false,
     download: false,
+    output: false,
   });
   const [errors, setErrors] = useState<Record<Script, string | null>>({
     monitor: null,
@@ -85,19 +96,29 @@ function App() {
     upload: null,
     remote_run: null,
     download: null,
+    output: null,
   });
 
+  const [selectedTab, setSelectedTab] = useState("monitor");
   const [isMonitorListenerReady, setIsMonitorListenerReady] = useState<boolean>(false);
   const [monitorOutput, setMonitorOutput] = useState<string[]>([]);
   const [overallStatus, setOverallStatus] = useState<Status>("Checking");
 
   const isAnyScriptRunning = Object.values(isRunning).includes(true);
-  // might need to add more checks to disabled, depending on monitor
+
   const isRemoteRunDisabled =
-    isCompleted["remote_run"] || isRunning["remote_run"] || isRunning["monitor"];
+    isCompleted["remote_run"] ||
+    isRunning["remote_run"] ||
+    isRunning["monitor"] ||
+    !isCompleted["upload"];
+  const isDownloadDisabled =
+    isCompleted["download"] || !isCompleted["remote_run"] || isRunning["download"];
 
   // hook to get current log.log file
-  const { logData, slurmNumber } = useLogFile("");
+  const { logData, slurmNumber } = useLogFile("", [
+    isCompleted["automate"],
+    isCompleted["monitor"],
+  ]);
   const { slurmData } = useSlurmOutputFile(slurmNumber);
 
   // checking log file to find where we currently are
@@ -126,8 +147,10 @@ function App() {
 
       const unlistenFinished = listen<string>(`script-finished-${scriptName}`, (e) => {
         console.log(e.payload);
-        setIsRunning((prev) => ({ ...prev, [scriptName]: false }));
-        setIsCompleted((prev) => ({ ...prev, [scriptName]: true }));
+        if (scriptName !== "remote_run") {
+          setIsRunning((prev) => ({ ...prev, [scriptName]: false }));
+          setIsCompleted((prev) => ({ ...prev, [scriptName]: true }));
+        }
       });
 
       unlistenFns[scriptName] = { output: unlistenOutput, finished: unlistenFinished };
@@ -143,6 +166,7 @@ function App() {
     };
   }, []);
 
+  // setting up my monitor listener and custom logic
   useEffect(() => {
     let unlistenOutput: UnlistenFn;
     let unlistenFinished: UnlistenFn;
@@ -172,6 +196,10 @@ function App() {
                 upload: true,
                 remote_run: true,
               }));
+              setIsRunning((prev) => ({
+                ...prev,
+                remote_run: false,
+              }));
             }
             // only update current status if there is a change
             setOverallStatus((prev) => {
@@ -184,7 +212,7 @@ function App() {
         });
         setIsMonitorListenerReady(true);
 
-        unlistenFinished = await listen<string>("script-finished-monitor", (e) => {
+        unlistenFinished = await listen<string>("script-finished-monitor", () => {
           setIsRunning((prev) => ({ ...prev, monitor: false }));
           setIsCompleted((prev) => ({ ...prev, monitor: true }));
         });
@@ -244,6 +272,9 @@ function App() {
             Cloud Tools
           </Tab>
           <Tab className="rounded-full py-1 px-3 text-sm/6 font-semibold text-white focus:outline-none data-[selected]:bg-white/10 data-[hover]:bg-white/5 data-[selected]:data-[hover]:bg-white/10 data-[focus]:outline-1 data-[focus]:outline-white">
+            Log File
+          </Tab>
+          <Tab className="rounded-full py-1 px-3 text-sm/6 font-semibold text-white focus:outline-none data-[selected]:bg-white/10 data-[hover]:bg-white/5 data-[selected]:data-[hover]:bg-white/10 data-[focus]:outline-1 data-[focus]:outline-white">
             Output Slurm
           </Tab>
         </TabList>
@@ -251,21 +282,25 @@ function App() {
           <TabPanel>
             <div className="flex w-full gap-x-6">
               <div className="flex flex-col h-full w-1/3 flex-shrink-0">
-                <span className="mt-5 text-xl font-semibold text-gray-200">Overview</span>
+                <p className="mt-5 text-xl font-semibold text-gray-200">Overview</p>
                 <div className="mt-5 bg-white/[3%] p-4 rounded-lg border border-zinc-700">
                   <Dashboard
                     overallStatus={overallStatus}
                     runningStatus={isRunning}
                     completedStatus={isCompleted}
+                    selectedScript={selectedTab}
                     errorStatus={errors}
                   />
                 </div>
               </div>
 
               <div className="flex flex-col justify-center w-2/3">
-                <span className="mt-5 text-xl font-semibold text-gray-200">Scripts</span>
+                <p className="mt-5 text-xl font-semibold text-gray-200">Scripts</p>
                 <div className="mt-5 bg-white/[3%] rounded-lg border border-zinc-700">
-                  <TabGroup className="w-full">
+                  <TabGroup
+                    onChange={(i) => setSelectedTab(tabs[i].scriptName)}
+                    className="w-full"
+                  >
                     <TabList className="pt-1 w-full px-2">
                       {tabs.map((tab) => (
                         <Tab
@@ -305,9 +340,7 @@ function App() {
                               tab.scriptName === "remote_run"
                                 ? isRemoteRunDisabled
                                 : tab.scriptName === "download"
-                                ? isCompleted["download"] ||
-                                  !isCompleted["remote_run"] ||
-                                  isRunning["download"]
+                                ? isDownloadDisabled
                                 : isRunning[tab.scriptName] || isAnyScriptRunning
                             }
                           />
@@ -322,7 +355,17 @@ function App() {
           <TabPanel>
             <div className="flex w-full">
               <div className="flex flex-col h-full w-full flex-shrink-0">
-                <span className="mt-5 text-xl font-semibold text-gray-200">Output</span>
+                <p className="mt-5 text-xl font-semibold text-gray-200">Log</p>
+                <div className="mt-5 bg-white/[3%] p-4 rounded-lg border border-zinc-700">
+                  <Log logData={logData} />
+                </div>
+              </div>
+            </div>
+          </TabPanel>
+          <TabPanel>
+            <div className="flex w-full">
+              <div className="flex flex-col h-full w-full flex-shrink-0">
+                <p className="mt-5 text-xl font-semibold text-gray-200">Output</p>
                 <div className="mt-5 bg-white/[3%] p-4 rounded-lg border border-zinc-700">
                   <OutputTab slurmNumber={slurmNumber} />
                 </div>

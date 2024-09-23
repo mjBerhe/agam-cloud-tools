@@ -72,65 +72,59 @@ export const SlurmDisplay: React.FC<{ contents: string; number: string }> = (pro
 
   return (
     <div className="flex flex-col items-center">
-      <span>Output for slurm-{number}</span>
+      <p>Output for slurm-{number}</p>
       <div className="mt-1 flex gap-x-2 items-center">
-        <span className="text-2xl font-bold">
+        <p className="text-2xl font-bold">
           {uniqueCompletedJobs.length} / {totalJobs} Completed
-        </span>
+        </p>
         <div>{isComplete ? <Check color="green" /> : <X color="red" />}</div>
       </div>
 
       <div className="grid grid-cols-3 gap-6 mt-8 min-w-[900px] w-full">
         <JobCard className="bg-red-500/[0.2] hover:bg-red-500/[0.3]">
           <div className="flex flex-col gap-y-1">
-            <span className="text-xl font-bold">
-              Failed Jobs ({actuallyFailedJobs.length})
-            </span>
-            <span className="text-sm text-gray-300 min-h-[40px]">
+            <p className="text-xl font-bold">Failed Jobs ({actuallyFailedJobs.length})</p>
+            <p className="text-sm text-gray-300 min-h-[40px]">
               Jobs that failed and never completed successfully
-            </span>
+            </p>
           </div>
           <div className="flex flex-col mt-5 gap-y-1">
             {actuallyFailedJobs.map((x) => (
-              <span className="text-sm" key={x.jobMessage}>
+              <p className="text-sm" key={x.jobMessage}>
                 {x.jobMessage}
-              </span>
+              </p>
             ))}
           </div>
         </JobCard>
 
         <JobCard className="bg-yellow-500/[0.2] hover:bg-yellow-500/[0.3]">
           <div className="flex flex-col gap-y-1">
-            <span className="text-xl font-bold">
+            <p className="text-xl font-bold">
               Resubmitted Jobs ({resubmittedJobs.length})
-            </span>
-            <span className="text-sm text-gray-300">
-              Jobs that failed and got resubmitted
-            </span>
+            </p>
+            <p className="text-sm text-gray-300">Jobs that failed and got resubmitted</p>
           </div>
           <div className="flex flex-col mt-5 gap-y-1">
             {resubmittedJobs.map((x) => (
-              <span className="text-sm" key={x.jobMessage}>
+              <p className="text-sm" key={x.jobMessage}>
                 {x.jobMessage}
-              </span>
+              </p>
             ))}
           </div>
         </JobCard>
 
         <JobCard className="bg-green-500/[0.2] hover:bg-green-500/[0.3]">
           <div className="flex flex-col gap-y-1">
-            <span className="text-xl font-bold">
+            <p className="text-xl font-bold">
               Completed Jobs ({uniqueCompletedJobs.length})
-            </span>
-            <span className="text-sm text-gray-300">
-              Jobs that completed successfully
-            </span>
+            </p>
+            <p className="text-sm text-gray-300">Jobs that completed successfully</p>
           </div>
           <div className="flex flex-col mt-5 gap-y-1">
             {uniqueCompletedJobs.map((x) => (
-              <span className="text-sm" key={x.jobMessage}>
+              <p className="text-sm" key={x.jobMessage}>
                 {x.jobMessage}
-              </span>
+              </p>
             ))}
           </div>
         </JobCard>

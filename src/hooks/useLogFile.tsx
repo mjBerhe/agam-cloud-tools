@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 
-export const useLogFile = (logFilePath: string) => {
+export const useLogFile = (logFilePath: string, dependencies: unknown[]) => {
   const [logData, setLogData] = useState<string>("");
   const [slurmNumber, setSlurmNumber] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export const useLogFile = (logFilePath: string) => {
     };
 
     fetchLogFile();
-  }, [logFilePath]);
+  }, [logFilePath, ...dependencies]);
 
   return { logData, slurmNumber, error, loading };
 };

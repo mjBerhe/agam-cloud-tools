@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/button.tsx","./src/components/dashboard.tsx","./src/components/outputtab.tsx","./src/components/scripttab.tsx","./src/components/slurmoutput.tsx","./src/hooks/uselogfile.tsx","./src/hooks/useslurmoutputfile.tsx","./src/lib/utils.ts"],"version":"5.6.2"}

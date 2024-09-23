@@ -9,8 +9,10 @@ export const Dashboard: React.FC<{
   runningStatus: Record<Script, boolean>;
   completedStatus: Record<Script, boolean>;
   errorStatus: Record<Script, string | null>;
+  selectedScript: string;
 }> = (props) => {
-  const { overallStatus, runningStatus, completedStatus, errorStatus } = props;
+  const { overallStatus, runningStatus, completedStatus, errorStatus, selectedScript } =
+    props;
 
   // logic for finding current status of a script
   const checkScriptStatus = (scriptName: Script): Status => {
@@ -26,13 +28,17 @@ export const Dashboard: React.FC<{
     return "Idle";
   };
 
+  const renderOverallStatus = () => {
+    // TODO where should we deal with getting the logic and rendering our current status
+  };
+
   const scripts = Object.keys(runningStatus) as Script[];
 
   return (
     <div className="flex flex-col">
       <div className="flex justify-between items-center border-b pb-1 border-zinc-700">
-        <span className="text-gray-200">Current Status:</span>{" "}
-        <span
+        <p className="text-gray-200">Current Status:</p>{" "}
+        <p
           className={cn(
             "font-bold text-lg",
             overallStatus === "Idle" && "text-green-400",
@@ -40,7 +46,7 @@ export const Dashboard: React.FC<{
           )}
         >
           {overallStatus}
-        </span>
+        </p>
       </div>
 
       <div className="mt-4">
@@ -48,45 +54,47 @@ export const Dashboard: React.FC<{
           <div
             className={cn(
               "flex justify-between items-center py-2 px-2 hover:bg-white/[5%]",
-              i % 2 === 1 ? "" : "bg-white/[1%]"
+              i % 2 === 1 ? "" : "bg-white/[1%]",
+              selectedScript === scriptName && "bg-white/[8%]"
             )}
             key={scriptName}
           >
             {checkScriptStatus(scriptName) === "Running" ? (
               <div className="flex items-center gap-x-2">
                 <Loader />
-                <span>{scriptName}</span>
+                <p>{scriptName}</p>
               </div>
             ) : checkScriptStatus(scriptName) === "Completed" ? (
               <div className="flex items-center gap-x-1">
                 <Check className="text-green-400" />
-                <span>{scriptName}</span>
+                <p>{scriptName}</p>
               </div>
             ) : checkScriptStatus(scriptName) === "Error" ? (
               <div className="flex items-center gap-x-1">
                 <X className="text-red-400" />
-                <span>{scriptName}</span>
+                <p>{scriptName}</p>
               </div>
             ) : checkScriptStatus(scriptName) === "Idle" ? (
-              <span>{scriptName}</span>
+              <p>{scriptName}</p>
             ) : (
-              <span>{scriptName}</span>
+              <p>{scriptName}</p>
             )}
-            <span>
+            <p>
               {checkScriptStatus(scriptName) === "Running" ? (
-                <span>Running</span>
+                <p>Running</p>
               ) : checkScriptStatus(scriptName) === "Completed" ? (
-                <span className="text-green-400">Completed</span>
+                <p className="text-green-400">Completed</p>
               ) : checkScriptStatus(scriptName) === "Error" ? (
-                <span className="text-gray-300">Error</span>
+                <p className="text-gray-300">Error</p>
               ) : checkScriptStatus(scriptName) === "Idle" ? (
                 <div>Idle</div>
               ) : (
                 <div>Idle</div>
               )}
-            </span>
+            </p>
           </div>
         ))}
+        <div></div>
       </div>
     </div>
   );

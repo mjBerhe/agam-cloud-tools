@@ -121,14 +121,15 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<(),
   // getting the parent directory of where the script_path is located
   let script_dir = Path::new(script_path).parent().unwrap();
 
-  // Spawn the bash script process
-  let mut child = Command::new("bash")
-  .arg(script_path)
-  .current_dir(script_dir)
-  .envs(env::vars()) // Pass the current environment variables
-  .stdout(Stdio::piped()) // Pipe stdout
-  .spawn()
-  .map_err(|e| e.to_string())?;
+  let bash_command = "C:/Program Files/Git/bin/bash.exe";
+
+   let mut child = Command::new(bash_command)
+    .arg(script_path)
+    .current_dir(script_dir)
+    .envs(env::vars()) // Pass the current environment variables
+    .stdout(Stdio::piped()) // Pipe stdout
+    .spawn()
+    .map_err(|e| e.to_string())?;
 
   let stdout = child.stdout.as_mut().ok_or("Failed to open stdout")?;
   let reader = std::io::BufReader::new(stdout);
