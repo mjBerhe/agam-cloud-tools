@@ -3,14 +3,16 @@
 
 use tauri::Window;
 use std::process::{Command, Stdio};
-use std::io::BufRead;
+use std::io::{BufRead, self, Read};
 use std::env;
 use std::path::Path;
+use std::fs::File;
+use std::fs;
 
 fn main() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![run_bash_script])
-    .invoke_handler(tauri::generate_handler![run_bash_script_test])
+    // .invoke_handler(tauri::generate_handler![run_bash_script])
+    .invoke_handler(tauri::generate_handler![read_log_file, read_slurm_file, run_bash_script_test])    
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
@@ -27,6 +29,7 @@ const REMOTE_RUN_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability
 const MONITOR_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/4_Monitor.sh";
 const DOWNLOAD_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/5_Download.sh";
 
+const LOG_FILE: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/log.log";
 
 // this works, however the output is only sent when the whole script finishes
 #[tauri::command]
@@ -58,19 +61,49 @@ fn run_bash_script(script_name: String) -> Result<String, String> {
 
 }
 
-// #[tauri::command]
-// async fn run_monitor_script(window: Window) -> Result<(), String> {
-//   let script_path: &str = MONITOR_SCRIPT;
-//   let script_dir = Path::new(script_path).parent().unwrap();
+#[tauri::command]
+fn read_log_file(file_path: String) -> Result<String, String> {
+  // Check if the file exists
+  let file_path = LOG_FILE;
+  if !Path::new(&file_path).exists() {
+      return Err(format!("File not found: {}", file_path));
+  }
 
-//   let mut child = Command::new("bash")
-//   .arg(script_path)
-//   .current_dir(script_dir)
-//   .envs(env::vars()) // Pass the current environment variables
-//   .stdout(Stdio::piped()) // Pipe stdout
-//   .spawn()
-//   .map_err(|e| e.to_string())?;
-// }
+  // Open the log file
+  let mut file = File::open(&file_path).map_err(|e| e.to_string())?;
+  let mut contents = String::new();
+
+  // Read the entire file into a single string
+  file.read_to_string(&mut contents).map_err(|e| e.to_string())?;
+
+  // Return the file contents as the result
+  Ok(contents)
+}
+
+#[tauri::command]
+fn read_slurm_file(folder_path: String, file_name: String) -> Result<String, String> {
+  let folder_path = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/outputSlurm";
+  // Construct the file name like "slurm-{file_name}.out"
+  let expected_file_name = format!("slurm-{}.out", file_name);
+    
+  // Read the directory contents
+  let dir = Path::new(&folder_path);
+  if !dir.is_dir() {
+    return Err("Provided path is not a valid directory".to_string());
+  }
+  
+  // Check if the expected file exists in the directory
+  let file_path = dir.join(&expected_file_name);
+  if !file_path.exists() {
+      return Err(format!("No file found with name {}", expected_file_name));
+  }
+
+  // Read the file content
+  let content = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
+
+  // Return the file content
+  Ok(content)
+}
 
 #[tauri::command]
 async fn run_bash_script_test(window: Window, script_name: String) -> Result<(), String> {
