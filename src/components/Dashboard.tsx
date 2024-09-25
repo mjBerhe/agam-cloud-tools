@@ -2,7 +2,7 @@ import { cn } from "../lib/utils";
 import { Check, X } from "lucide-react";
 import type { Script } from "../App";
 
-export type Status = "Checking" | "Running" | "Idle" | "Error" | "Completed";
+export type Status = "Checking" | "Running" | "Idle" | "Error" | "Completed" | "Ready";
 
 export const Dashboard: React.FC<{
   overallStatus: Status;
@@ -16,85 +16,119 @@ export const Dashboard: React.FC<{
 
   // logic for finding current status of a script
   const checkScriptStatus = (scriptName: Script): Status => {
-    if (runningStatus[scriptName]) {
-      return "Running";
-    }
-    if (completedStatus[scriptName]) {
-      return "Completed";
-    }
-    if (errorStatus[scriptName]) {
-      return "Error";
-    }
+    if (runningStatus[scriptName]) return "Running";
+    if (completedStatus[scriptName]) return "Completed";
+    if (errorStatus[scriptName]) return "Error";
+    if (scriptName === "automate" && !completedStatus["upload"]) return "Ready";
+    if (
+      scriptName === "upload" &&
+      completedStatus["automate"] &&
+      !completedStatus["remote_run"]
+    )
+      return "Ready";
+    if (
+      scriptName === "remote_run" &&
+      completedStatus["upload"] &&
+      !completedStatus["download"]
+    )
+      return "Ready";
+    if (
+      scriptName === "download" &&
+      completedStatus["remote_run"] &&
+      !completedStatus["output"]
+    )
+      return "Ready";
+    if (scriptName === "output" && completedStatus["download"]) return "Ready";
     return "Idle";
   };
 
-  const renderOverallStatus = () => {
-    // TODO where should we deal with getting the logic and rendering our current status
-  };
+  const isSomethingRunning = Object.values(runningStatus).includes(true);
+  const isSomethingErrored = Object.values(errorStatus).some(
+    (x) => x !== null && x !== ""
+  );
+
+  // logic for finding current status of the application
+  const currentStatus = isSomethingRunning ? (
+    <p className="text-green-400">Running</p>
+  ) : isSomethingErrored ? (
+    <p className="text-red-400"></p>
+  ) : (
+    <p className="text-white">
+      {completedStatus["monitor"] && !completedStatus["automate"]
+        ? "Ready to Automate"
+        : completedStatus["automate"] && !completedStatus["upload"]
+        ? "Ready to Upload"
+        : completedStatus["upload"] && !completedStatus["remote_run"]
+        ? "Ready to Remote Run"
+        : completedStatus["remote_run"] && !completedStatus["download"]
+        ? "Ready to Download"
+        : completedStatus["download"] && !completedStatus["output"]
+        ? "Output Ready"
+        : "Idle"}
+    </p>
+  );
 
   const scripts = Object.keys(runningStatus) as Script[];
 
   return (
     <div className="flex flex-col">
       <div className="flex justify-between items-center border-b pb-1 border-zinc-700">
-        <p className="text-gray-200">Current Status:</p>{" "}
-        <p
-          className={cn(
-            "font-bold text-lg",
-            overallStatus === "Idle" && "text-green-400",
-            overallStatus === "Completed" && "text-green-400"
-          )}
-        >
-          {overallStatus}
-        </p>
+        <p className="text-gray-200">Status</p>
+        <p className="font-medium">{currentStatus}</p>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-5">
         {scripts.map((scriptName, i) => (
           <div
             className={cn(
-              "flex justify-between items-center py-2 px-2 hover:bg-white/[5%]",
-              i % 2 === 1 ? "" : "bg-white/[1%]",
+              "flex justify-between items-center py-2 px-2 hover:bg-white/[5%] text-sm",
               selectedScript === scriptName && "bg-white/[8%]"
             )}
             key={scriptName}
           >
             {checkScriptStatus(scriptName) === "Running" ? (
-              <div className="flex items-center gap-x-2">
-                <Loader />
-                <p>{scriptName}</p>
+              <div className="flex justify-between w-full">
+                <div className="flex gap-1 items-center">
+                  <Loader />
+                  <p>{scriptName}</p>
+                </div>
+                <p className="text-white">Running</p>
               </div>
             ) : checkScriptStatus(scriptName) === "Completed" ? (
-              <div className="flex items-center gap-x-1">
-                <Check className="text-green-400" />
-                <p>{scriptName}</p>
+              <div className="flex justify-between w-full">
+                <div className="flex gap-1 items-center">
+                  <Check className="text-green-400 h-4 w-4" />
+                  <p>{scriptName}</p>
+                </div>
+                <p className="text-green-400">Completed</p>
               </div>
             ) : checkScriptStatus(scriptName) === "Error" ? (
-              <div className="flex items-center gap-x-1">
-                <X className="text-red-400" />
-                <p>{scriptName}</p>
+              <div className="flex justify-between w-full">
+                <div className="flex gap-1 items-center">
+                  <X className="text-red-400 h-4 w-4" />
+                  <p>{scriptName}</p>
+                </div>
+                <p className="text-red-400">Error</p>
               </div>
-            ) : checkScriptStatus(scriptName) === "Idle" ? (
-              <p>{scriptName}</p>
+            ) : checkScriptStatus(scriptName) === "Ready" ? (
+              <div className="flex justify-between w-full">
+                <div className="flex gap-1 items-center">
+                  <div className="h-4 w-4" />
+                  <p>{scriptName}</p>
+                </div>
+                <p className="text-white-400">Ready</p>
+              </div>
             ) : (
-              <p>{scriptName}</p>
+              <div className="flex justify-between w-full">
+                <div className="flex gap-1 items-center">
+                  <div className="h-4 w-4" />
+                  <p>{scriptName}</p>
+                </div>
+                <p className="text-white-400">Idle</p>
+              </div>
             )}
-            <p>
-              {checkScriptStatus(scriptName) === "Running" ? (
-                <p>Running</p>
-              ) : checkScriptStatus(scriptName) === "Completed" ? (
-                <p className="text-green-400">Completed</p>
-              ) : checkScriptStatus(scriptName) === "Error" ? (
-                <p className="text-gray-300">Error</p>
-              ) : checkScriptStatus(scriptName) === "Idle" ? (
-                <div>Idle</div>
-              ) : (
-                <div>Idle</div>
-              )}
-            </p>
           </div>
         ))}
-        <div></div>
       </div>
     </div>
   );
@@ -104,7 +138,7 @@ const Loader: React.FC = () => {
   return (
     <svg
       aria-hidden="true"
-      className="w-6 h-6 text-gray-200 animate-spin dark:text-gray-600 fill-blue-500"
+      className="w-4 h-4 text-gray-200 animate-spin dark:text-gray-600 fill-blue-500"
       viewBox="0 0 100 101"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

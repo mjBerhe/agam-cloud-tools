@@ -99,7 +99,7 @@ function App() {
     output: null,
   });
 
-  const [selectedTab, setSelectedTab] = useState("monitor");
+  const [selectedTab, setSelectedTab] = useState<Script>("monitor");
   const [isMonitorListenerReady, setIsMonitorListenerReady] = useState<boolean>(false);
   const [monitorOutput, setMonitorOutput] = useState<string[]>([]);
   const [overallStatus, setOverallStatus] = useState<Status>("Checking");
@@ -115,6 +115,7 @@ function App() {
     isCompleted["download"] || !isCompleted["remote_run"] || isRunning["download"];
 
   // hook to get current log.log file
+  // TODO: need to edit path param
   const { logData, slurmNumber } = useLogFile("", [
     isCompleted["automate"],
     isCompleted["monitor"],
@@ -129,8 +130,8 @@ function App() {
     setIsCompleted((prev) => ({ ...prev, download: true }));
   }
 
-  // loop over each script, and create a listener events for incoming output and a finish message
-  // purposely not going over monitor script
+  // loop over each script, and create listener events for incoming output and a finish message
+  // purposely not going over monitor script as it has its own seperate logic
   useEffect(() => {
     const unlistenFns: Record<
       string,
@@ -166,7 +167,7 @@ function App() {
     };
   }, []);
 
-  // setting up my monitor listener and custom logic
+  // setting up my monitor listener event and custom logic
   useEffect(() => {
     let unlistenOutput: UnlistenFn;
     let unlistenFinished: UnlistenFn;
@@ -223,7 +224,6 @@ function App() {
 
     setupMonitorListener();
 
-    // cleaning up listener
     return () => {
       if (unlistenOutput) unlistenOutput();
       if (unlistenFinished) unlistenFinished();
@@ -337,7 +337,11 @@ function App() {
                             }
                             runScript={runScript}
                             isDisabled={
-                              tab.scriptName === "remote_run"
+                              tab.scriptName === "upload"
+                                ? isCompleted["upload"] ||
+                                  isRunning["upload"] ||
+                                  isAnyScriptRunning
+                                : tab.scriptName === "remote_run"
                                 ? isRemoteRunDisabled
                                 : tab.scriptName === "download"
                                 ? isDownloadDisabled
@@ -375,7 +379,7 @@ function App() {
         </TabPanels>
       </TabGroup>
 
-      <div className="flex flex-col gap-y-2 pb-12"></div>
+      {/* <div className="flex flex-col gap-y-2 pb-12"></div> */}
     </main>
   );
 }

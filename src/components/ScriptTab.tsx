@@ -35,6 +35,9 @@ export const ScriptTab: React.FC<{
               : `${tab.name} is Idle`}
           </p>
           <div className="pt-2 flex flex-col text-sm overflow-y-auto h-[300px] text-gray-300">
+            {tab.scriptName === "remote_run" &&
+              status === "Running" &&
+              "Check 'Monitor' tab to view progress"}
             {output.map((x, i) => (
               <p key={`${x}-${i}`} className="">
                 {x}
