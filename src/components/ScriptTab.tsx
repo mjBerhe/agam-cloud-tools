@@ -11,7 +11,7 @@ export const ScriptTab: React.FC<{
   status: Status;
   isDisabled: boolean;
 }> = (props) => {
-  const { tab, output, logData, runScript, status, isDisabled } = props;
+  const { tab, output, runScript, status, isDisabled } = props;
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 

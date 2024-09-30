@@ -11,8 +11,7 @@ export const Dashboard: React.FC<{
   errorStatus: Record<Script, string | null>;
   selectedScript: string;
 }> = (props) => {
-  const { overallStatus, runningStatus, completedStatus, errorStatus, selectedScript } =
-    props;
+  const { runningStatus, completedStatus, errorStatus, selectedScript } = props;
 
   // logic for finding current status of a script
   const checkScriptStatus = (scriptName: Script): Status => {
@@ -78,7 +77,7 @@ export const Dashboard: React.FC<{
       </div>
 
       <div className="mt-5">
-        {scripts.map((scriptName, i) => (
+        {scripts.map((scriptName) => (
           <div
             className={cn(
               "flex justify-between items-center py-2 px-2 hover:bg-white/[5%] text-sm",

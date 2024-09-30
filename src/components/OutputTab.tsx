@@ -2,7 +2,6 @@ import { useSlurmOutputFile } from "../hooks/useSlurmOutputFile";
 import { SlurmDisplay } from "./slurmOutput";
 
 export const OutputTab: React.FC<{ slurmNumber: string }> = ({ slurmNumber }) => {
-  // const [outputData, setOutputData] = useState("");
   const { slurmData } = useSlurmOutputFile(slurmNumber);
 
   return (

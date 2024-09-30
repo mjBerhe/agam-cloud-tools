@@ -11,7 +11,6 @@ export const useSlurmOutputFile = (slurmNumber: string) => {
       try {
         setLoading(true);
         const data = await invoke<string>("read_slurm_file", {
-          folderPath: "",
           fileName: slurmNumber,
         });
         setSlurmData(data);

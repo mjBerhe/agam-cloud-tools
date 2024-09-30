@@ -116,7 +116,7 @@ function App() {
 
   // hook to get current log.log file
   // TODO: need to edit path param
-  const { logData, slurmNumber } = useLogFile("", [
+  const { logData, slurmNumber } = useLogFile([
     isCompleted["automate"],
     isCompleted["monitor"],
   ]);
@@ -218,6 +218,10 @@ function App() {
           setIsCompleted((prev) => ({ ...prev, monitor: true }));
         });
       } catch (err) {
+        setErrors((prev) => ({
+          ...prev,
+          monitor: err as string,
+        }));
         console.error(err);
       }
     };
@@ -239,7 +243,17 @@ function App() {
         .then(() => {
           console.log(`monitor script started`);
         })
-        .catch((err) => console.error(err));
+        .catch((err) => {
+          setErrors((prev) => ({
+            ...prev,
+            monitor: err,
+          }));
+          setIsRunning((prev) => ({
+            ...prev,
+            monitor: false,
+          }));
+          console.error(err);
+        });
     }
   }, [isMonitorListenerReady]);
 

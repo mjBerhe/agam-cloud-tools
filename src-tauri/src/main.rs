@@ -2,7 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::Window;
-// use tauri::api::path::current_exe;
+use winapi::um::winbase::CREATE_NO_WINDOW;
+use std::os::windows::process::CommandExt;
 use std::process::{Command, Stdio};
 use std::io::{BufRead, Read};
 use std::env;
@@ -26,32 +27,85 @@ const MONITOR_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pA
 const DOWNLOAD_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/5_Download.sh";
 
 const LOG_FILE: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/log.log";
+const SLURM_FOLDER: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/outputSlurm";
+
+// Function to find the Python executable path
+fn find_python_path() -> Result<String, String> {
+  // let python_command = if cfg!(target_os = "windows") {
+  //     "where python"  // On Windows, use 'where'
+  // } else {
+  //     "which python"  // On Linux/macOS, use 'which'
+  // };
+
+  // only testing on windows
+  let python_command = "where python";
+  // let bash_command = "C:/Program Files/Git/bin/bash.exe";
+
+  // Execute the command to find the Python path
+  let output = Command::new("cmd") // Use "cmd" for Windows if running as shell
+      .arg("/C")
+      .arg(python_command)
+      .stdout(Stdio::piped())
+      .creation_flags(CREATE_NO_WINDOW) // suppress console window from popping up after each script
+      .output()
+      .map_err(|e| format!("Failed to run Python path check: {}", e))?;
+
+  if output.status.success() {
+      let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+      if !path.is_empty() {
+          Ok(path)
+      } else {
+          Err("Python executable not found".to_string())
+      }
+  } else {
+      let error_message = String::from_utf8_lossy(&output.stderr).to_string();
+      Err(format!("Error finding Python path: {}", error_message))
+  }
+}
 
 #[tauri::command]
 async fn run_bash_script_test(window: Window, script_name: String) -> Result<(), String> {
-  // let exe_path: PathBuf = current_exe().map_err(|e| e.to_string())?;
+  
+  let script_path: PathBuf;
 
-  // Determine the script path based on the passed script_name
-  let script_path: &str = match script_name.as_str() {
-    "test" => TEST_SCRIPT,
-    "automate" => AUTOMATE_SCRIPT,
-    "upload" => UPLOAD_SCRIPT,
-    "remote_run" => REMOTE_RUN_SCRIPT,
-    "monitor" => MONITOR_SCRIPT,
-    "download" => DOWNLOAD_SCRIPT,
-    _ => return Err(format!("Unsupported script name: {}", script_name)),
-  };
+  if cfg!(debug_assertions) {
+    // development mode
+    script_path = match script_name.as_str() {
+      "test" => PathBuf::from(TEST_SCRIPT),
+      "automate" => PathBuf::from(AUTOMATE_SCRIPT),
+      "upload" => PathBuf::from(UPLOAD_SCRIPT),
+      "remote_run" => PathBuf::from(REMOTE_RUN_SCRIPT),
+      "monitor" => PathBuf::from(MONITOR_SCRIPT),
+      "download" => PathBuf::from(DOWNLOAD_SCRIPT),
+      _ => return Err(format!("Unsupported script name: {}", script_name)),
+    }
+  } else {
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    script_path = match script_name.as_str() {
+      "test" => exe_path.parent().unwrap().join("test.sh"),
+      "automate" => exe_path.parent().unwrap().join("1_Automate.sh"),
+      "upload" => exe_path.parent().unwrap().join("2_1_Upload.sh"),
+      "remote_run" => exe_path.parent().unwrap().join("3_RemoteRun.sh"),
+      "monitor" => exe_path.parent().unwrap().join("4_Monitor.sh"),
+      "download" => exe_path.parent().unwrap().join("5_Download.sh"),
+      _ => return Err(format!("Unsupported script name: {}", script_name)),
+    };
+  }
 
   // getting the parent directory of where the script_path is located
-  let script_dir = Path::new(script_path).parent().unwrap();
+  let script_dir = script_path.parent().ok_or("Failed to get script directory")?;
 
   let bash_command = "C:/Program Files/Git/bin/bash.exe";
+  // Find the Python executable path
+  let python_path = find_python_path()?;
 
-   let mut child = Command::new(bash_command)
-    .arg(script_path)
+  let mut child = Command::new(bash_command)
+    .arg(script_path.clone())
     .current_dir(script_dir)
     .envs(env::vars()) // Pass the current environment variables
+    .env("PYTHON_PATH", python_path) // Set the PYTHON_PATH environment variable if needed
     .stdout(Stdio::piped()) // Pipe stdout
+    .creation_flags(CREATE_NO_WINDOW) // suppress console window from popping up after each script
     .spawn()
     .map_err(|e| e.to_string())?;
 
@@ -83,11 +137,21 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<(),
 }
 
 #[tauri::command]
-fn read_log_file(file_path: String) -> Result<String, String> {
+fn read_log_file() -> Result<String, String> {
   // Check if the file exists
-  let file_path = LOG_FILE;
-  if !Path::new(&file_path).exists() {
-      return Err(format!("File not found: {}", file_path));
+  let file_path: PathBuf;
+
+  if cfg!(debug_assertions) {
+    // development mode
+    file_path = PathBuf::from(LOG_FILE);
+  } else {
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    file_path = exe_path.parent().unwrap().join("log.log");
+  }
+
+  // Check if the log file exists
+  if !file_path.exists() {
+    return Err(format!("File not found: {:?}", file_path));
   }
 
   // Open the log file
@@ -102,8 +166,17 @@ fn read_log_file(file_path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn read_slurm_file(folder_path: String, file_name: String) -> Result<String, String> {
-  let folder_path = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/outputSlurm";
+fn read_slurm_file(file_name: String) -> Result<String, String> {
+  let folder_path: PathBuf;
+
+  if cfg!(debug_assertions) {
+    // development mode
+    folder_path = PathBuf::from(SLURM_FOLDER);
+  } else {
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    folder_path = exe_path.parent().unwrap().join("../outputSlurm");
+  }
+
   // Construct the file name like "slurm-{file_name}.out"
   let expected_file_name = format!("slurm-{}.out", file_name);
     

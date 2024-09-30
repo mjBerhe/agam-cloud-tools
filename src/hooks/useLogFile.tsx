@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 
-export const useLogFile = (logFilePath: string, dependencies: unknown[]) => {
+export const useLogFile = (dependencies: unknown[]) => {
   const [logData, setLogData] = useState<string>("");
   const [slurmNumber, setSlurmNumber] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -11,7 +11,7 @@ export const useLogFile = (logFilePath: string, dependencies: unknown[]) => {
     const fetchLogFile = async () => {
       try {
         setLoading(true);
-        const data = await invoke<string>("read_log_file", { filePath: logFilePath });
+        const data = await invoke<string>("read_log_file");
         if (data) {
           const regex = /Submitted batch job (\d{7})/;
           const match = data.match(regex);
@@ -29,7 +29,7 @@ export const useLogFile = (logFilePath: string, dependencies: unknown[]) => {
     };
 
     fetchLogFile();
-  }, [logFilePath, ...dependencies]);
+  }, [...dependencies]);
 
   return { logData, slurmNumber, error, loading };
 };
