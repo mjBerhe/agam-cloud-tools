@@ -1,33 +1,49 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::env;
+use std::fs;
+use std::fs::File;
+use std::io::{BufRead, Read};
+use std::os::windows::process::CommandExt;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use tauri::Window;
 use winapi::um::winbase::CREATE_NO_WINDOW;
-use std::os::windows::process::CommandExt;
-use std::process::{Command, Stdio};
-use std::io::{BufRead, Read};
-use std::env;
-use std::path::{Path, PathBuf};
-use std::fs::File;
-use std::fs;
 
 fn main() {
   tauri::Builder::default()
     // .invoke_handler(tauri::generate_handler![run_bash_script])
-    .invoke_handler(tauri::generate_handler![read_log_file, read_slurm_file, run_bash_script_test])    
+    .invoke_handler(tauri::generate_handler![
+      read_log_file,
+      read_slurm_file,
+      run_bash_script_test,
+      read_json_file,
+      save_json_file
+    ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
 
-const TEST_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/test.sh";
-const AUTOMATE_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/1_Automate.sh";
-const UPLOAD_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/2_1_Upload.sh";
-const REMOTE_RUN_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/3_RemoteRun.sh";
-const MONITOR_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/4_Monitor.sh";
-const DOWNLOAD_SCRIPT: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/5_Download.sh";
+const TEST_SCRIPT: &str =
+  "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/test.sh";
+const AUTOMATE_SCRIPT: &str =
+  "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/1_Automate.sh";
+const UPLOAD_SCRIPT: &str =
+  "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/2_1_Upload.sh";
+const REMOTE_RUN_SCRIPT: &str =
+  "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/3_RemoteRun.sh";
+const MONITOR_SCRIPT: &str =
+  "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/4_Monitor.sh";
+const DOWNLOAD_SCRIPT: &str =
+  "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/5_Download.sh";
 
-const LOG_FILE: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/log.log";
-const SLURM_FOLDER: &str = "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/outputSlurm";
+const LOG_FILE: &str =
+  "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/log.log";
+const SLURM_FOLDER: &str =
+  "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/outputSlurm";
+const CONFIG_JSON_FILE: &str =
+  "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/config.json";
 
 // Function to find the Python executable path
 fn find_python_path() -> Result<String, String> {
@@ -39,33 +55,31 @@ fn find_python_path() -> Result<String, String> {
 
   // only testing on windows
   let python_command = "where python";
-  // let bash_command = "C:/Program Files/Git/bin/bash.exe";
 
   // Execute the command to find the Python path
   let output = Command::new("cmd") // Use "cmd" for Windows if running as shell
-      .arg("/C")
-      .arg(python_command)
-      .stdout(Stdio::piped())
-      .creation_flags(CREATE_NO_WINDOW) // suppress console window from popping up after each script
-      .output()
-      .map_err(|e| format!("Failed to run Python path check: {}", e))?;
+    .arg("/C")
+    .arg(python_command)
+    .stdout(Stdio::piped())
+    .creation_flags(CREATE_NO_WINDOW) // suppress console window from popping up after each script
+    .output()
+    .map_err(|e| format!("Failed to run Python path check: {}", e))?;
 
   if output.status.success() {
-      let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-      if !path.is_empty() {
-          Ok(path)
-      } else {
-          Err("Python executable not found".to_string())
-      }
+    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if !path.is_empty() {
+      Ok(path)
+    } else {
+      Err("Python executable not found".to_string())
+    }
   } else {
-      let error_message = String::from_utf8_lossy(&output.stderr).to_string();
-      Err(format!("Error finding Python path: {}", error_message))
+    let error_message = String::from_utf8_lossy(&output.stderr).to_string();
+    Err(format!("Error finding Python path: {}", error_message))
   }
 }
 
 #[tauri::command]
 async fn run_bash_script_test(window: Window, script_name: String) -> Result<(), String> {
-  
   let script_path: PathBuf;
 
   if cfg!(debug_assertions) {
@@ -93,7 +107,9 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<(),
   }
 
   // getting the parent directory of where the script_path is located
-  let script_dir = script_path.parent().ok_or("Failed to get script directory")?;
+  let script_dir = script_path
+    .parent()
+    .ok_or("Failed to get script directory")?;
 
   let bash_command = "C:/Program Files/Git/bin/bash.exe";
   // Find the Python executable path
@@ -116,7 +132,7 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<(),
   for line in reader.lines() {
     match line {
       Ok(output) => {
-        println!("Emitting: {}", output);  // Add this line to debug
+        println!("Emitting: {}", output); // Add this line to debug
         window
           .emit(format!("script-output-{}", script_name).as_str(), output) // Emit event with output
           .map_err(|e| e.to_string())?;
@@ -130,7 +146,10 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<(),
 
   // Emit a final event indicating the script has finished
   window
-    .emit(format!("script-finished-{}", script_name).as_str(), "Script completed") 
+    .emit(
+      format!("script-finished-{}", script_name).as_str(),
+      "Script completed",
+    )
     .map_err(|e| e.to_string())?;
 
   Ok(())
@@ -159,7 +178,9 @@ fn read_log_file() -> Result<String, String> {
   let mut contents = String::new();
 
   // Read the entire file into a single string
-  file.read_to_string(&mut contents).map_err(|e| e.to_string())?;
+  file
+    .read_to_string(&mut contents)
+    .map_err(|e| e.to_string())?;
 
   // Return the file contents as the result
   Ok(contents)
@@ -179,17 +200,17 @@ fn read_slurm_file(file_name: String) -> Result<String, String> {
 
   // Construct the file name like "slurm-{file_name}.out"
   let expected_file_name = format!("slurm-{}.out", file_name);
-    
+
   // Read the directory contents
   let dir = Path::new(&folder_path);
   if !dir.is_dir() {
     return Err("Provided path is not a valid directory".to_string());
   }
-  
+
   // Check if the expected file exists in the directory
   let file_path = dir.join(&expected_file_name);
   if !file_path.exists() {
-      return Err(format!("No file found with name {}", expected_file_name));
+    return Err(format!("No file found with name {}", expected_file_name));
   }
 
   // Read the file content
@@ -197,4 +218,43 @@ fn read_slurm_file(file_name: String) -> Result<String, String> {
 
   // Return the file content
   Ok(content)
+}
+
+#[tauri::command]
+fn read_json_file(file_path: String) -> Result<String, String> {
+  let final_file_path: PathBuf;
+
+  if cfg!(debug_assertions) {
+    // dev mode
+    final_file_path = PathBuf::from(CONFIG_JSON_FILE);
+  } else {
+    // change to current directory
+    final_file_path = PathBuf::from(file_path)
+  }
+
+  let content =
+    std::fs::read_to_string(final_file_path).map_err(|e| format!("Failed to read file: {}", e))?;
+  Ok(content)
+}
+
+#[tauri::command]
+fn save_json_file(file_path: String, json_data: String) -> Result<String, String> {
+  let final_file_path: PathBuf;
+
+  if cfg!(debug_assertions) {
+    // dev mode
+    final_file_path = PathBuf::from(CONFIG_JSON_FILE);
+  } else {
+    // change to current directory
+    final_file_path = PathBuf::from(file_path)
+  }
+
+  // Try to write to the file
+  match std::fs::write(final_file_path, json_data) {
+    Ok(_) => Ok("File saved successfully".to_string()), // Return success message
+    Err(err) => Err(format!("Failed to save file: {}", err)), // Return error message
+  }
+
+  // std::fs::write(final_file_path, json_data).map_err(|e| format!("Failed to write file: {}", e))?;
+  // Ok(())
 }

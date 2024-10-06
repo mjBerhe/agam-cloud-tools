@@ -14,6 +14,7 @@ import { useLogFile } from "./hooks/useLogFile";
 import { OutputTab } from "./components/OutputTab";
 import { useSlurmOutputFile } from "./hooks/useSlurmOutputFile";
 import { Log } from "./components/Log";
+import { JsonEditorTab } from "./components/JsonEditorTab";
 
 export type Script =
   | "automate"
@@ -280,7 +281,7 @@ function App() {
 
   return (
     <main className={cn("container mx-auto px-4 h-screen font-geist")}>
-      <TabGroup className="mt-4 pb-0">
+      <TabGroup className="mt-4 pb-12">
         <TabList className="flex gap-x-4">
           <Tab className="rounded-full py-1 px-3 text-sm/6 font-semibold text-white focus:outline-none data-[selected]:bg-white/10 data-[hover]:bg-white/5 data-[selected]:data-[hover]:bg-white/10 data-[focus]:outline-1 data-[focus]:outline-white">
             Cloud Tools
@@ -290,6 +291,9 @@ function App() {
           </Tab>
           <Tab className="rounded-full py-1 px-3 text-sm/6 font-semibold text-white focus:outline-none data-[selected]:bg-white/10 data-[hover]:bg-white/5 data-[selected]:data-[hover]:bg-white/10 data-[focus]:outline-1 data-[focus]:outline-white">
             Output Slurm
+          </Tab>
+          <Tab className="rounded-full py-1 px-3 text-sm/6 font-semibold text-white focus:outline-none data-[selected]:bg-white/10 data-[hover]:bg-white/5 data-[selected]:data-[hover]:bg-white/10 data-[focus]:outline-1 data-[focus]:outline-white">
+            Config File
           </Tab>
         </TabList>
         <TabPanels className="px-2">
@@ -387,6 +391,15 @@ function App() {
                 <div className="mt-5 bg-white/[3%] p-4 rounded-lg border border-zinc-700">
                   <OutputTab slurmNumber={slurmNumber} />
                 </div>
+              </div>
+            </div>
+          </TabPanel>
+          <TabPanel>
+            <div className="flex w-full">
+              <div className="flex flex-col h-full w-full flex-shrink-0">
+                <p className="mt-5 text-xl font-semibold text-gray-200">Config File</p>
+
+                <JsonEditorTab />
               </div>
             </div>
           </TabPanel>

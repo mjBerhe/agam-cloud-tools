@@ -1,6 +1,7 @@
 import { cn } from "../lib/utils";
 import { Check, X } from "lucide-react";
 import type { Script } from "../App";
+import { ReactNode } from "react";
 
 export type Status = "Checking" | "Running" | "Idle" | "Error" | "Completed" | "Ready";
 
@@ -47,7 +48,7 @@ export const Dashboard: React.FC<{
   );
 
   // logic for finding current status of the application
-  const currentStatus = isSomethingRunning ? (
+  const currentStatus: ReactNode = isSomethingRunning ? (
     <p className="text-green-400">Running</p>
   ) : isSomethingErrored ? (
     <p className="text-red-400"></p>
@@ -73,7 +74,7 @@ export const Dashboard: React.FC<{
     <div className="flex flex-col">
       <div className="flex justify-between items-center border-b pb-1 border-zinc-700">
         <p className="text-gray-200">Status</p>
-        <p className="font-medium">{currentStatus}</p>
+        <span className="font-medium">{currentStatus}</span>
       </div>
 
       <div className="mt-5">

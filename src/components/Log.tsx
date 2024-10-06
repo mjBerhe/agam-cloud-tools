@@ -1,6 +1,4 @@
 export const Log: React.FC<{ logData?: string }> = ({ logData }) => {
-  console.log(logData);
-
   return (
     <div className="flex flex-col text-sm overflow-y-auto text-gray-300">
       {logData
