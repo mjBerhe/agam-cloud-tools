@@ -15,6 +15,7 @@ import { OutputTab } from "./components/OutputTab";
 import { useSlurmOutputFile } from "./hooks/useSlurmOutputFile";
 import { Log } from "./components/Log";
 import { JsonEditorTab } from "./components/JsonEditorTab";
+import { SenBatchEditorTab } from "./components/SenBatchEditorTab";
 
 export type Script =
   | "automate"
@@ -295,11 +296,14 @@ function App() {
           <Tab className="rounded-full py-1 px-3 text-sm/6 font-semibold text-white focus:outline-none data-[selected]:bg-white/10 data-[hover]:bg-white/5 data-[selected]:data-[hover]:bg-white/10 data-[focus]:outline-1 data-[focus]:outline-white">
             Config File
           </Tab>
+          <Tab className="rounded-full py-1 px-3 text-sm/6 font-semibold text-white focus:outline-none data-[selected]:bg-white/10 data-[hover]:bg-white/5 data-[selected]:data-[hover]:bg-white/10 data-[focus]:outline-1 data-[focus]:outline-white">
+            Sen Batch File
+          </Tab>
         </TabList>
         <TabPanels className="px-2">
           <TabPanel>
             <div className="flex w-full gap-x-6">
-              <div className="flex flex-col h-full w-1/3 flex-shrink-0">
+              <div className="flex flex-col h-full w-1/3">
                 <p className="mt-5 text-xl font-semibold text-gray-200">Overview</p>
                 <div className="mt-5 bg-white/[3%] p-4 rounded-lg border border-zinc-700">
                   <Dashboard
@@ -375,33 +379,30 @@ function App() {
             </div>
           </TabPanel>
           <TabPanel>
-            <div className="flex w-full">
-              <div className="flex flex-col h-full w-full flex-shrink-0">
-                <p className="mt-5 text-xl font-semibold text-gray-200">Log</p>
-                <div className="mt-5 bg-white/[3%] p-4 rounded-lg border border-zinc-700">
-                  <Log logData={logData} />
-                </div>
+            <div className="flex flex-col h-full w-full">
+              <p className="mt-5 text-xl font-semibold text-gray-200">Log</p>
+              <div className="mt-5 bg-white/[3%] p-4 rounded-lg border border-zinc-700">
+                <Log logData={logData} />
               </div>
             </div>
           </TabPanel>
           <TabPanel>
-            <div className="flex w-full">
-              <div className="flex flex-col h-full w-full flex-shrink-0">
-                <p className="mt-5 text-xl font-semibold text-gray-200">Output</p>
-                <div className="mt-5 bg-white/[3%] p-4 rounded-lg border border-zinc-700">
-                  <OutputTab slurmNumber={slurmNumber} />
-                </div>
+            <div className="flex flex-col h-full w-full">
+              <p className="mt-5 text-xl font-semibold text-gray-200">Output</p>
+              <div className="mt-5 bg-white/[3%] p-4 rounded-lg border border-zinc-700">
+                <OutputTab slurmNumber={slurmNumber} />
               </div>
             </div>
           </TabPanel>
           <TabPanel>
-            <div className="flex w-full">
-              <div className="flex flex-col h-full w-full flex-shrink-0">
-                <p className="mt-5 text-xl font-semibold text-gray-200">Config File</p>
+            <div className="flex flex-col h-full w-full">
+              <p className="mt-5 text-xl font-semibold text-gray-200">Config File</p>
 
-                <JsonEditorTab />
-              </div>
+              <JsonEditorTab />
             </div>
+          </TabPanel>
+          <TabPanel>
+            <SenBatchEditorTab />
           </TabPanel>
         </TabPanels>
       </TabGroup>

@@ -1,4 +1,8 @@
 import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api";
+import { cn } from "../lib/utils";
+import { isEqual } from "lodash";
+
 import {
   Dialog,
   DialogPanel,
@@ -6,13 +10,7 @@ import {
   DialogBackdrop,
   Input,
 } from "@headlessui/react";
-import { invoke } from "@tauri-apps/api";
-import { cn } from "../lib/utils";
-import { isEqual } from "lodash";
-
 import { Button } from "./Button";
-
-const filePath = "";
 
 export const JsonEditorTab: React.FC = () => {
   const [initialJsonConfigData, setInitialJsonConfigData] = useState<
@@ -28,7 +26,7 @@ export const JsonEditorTab: React.FC = () => {
     const loadJsonFile = async () => {
       try {
         setLoading(true);
-        const data = await invoke<string>("read_json_file", { filePath });
+        const data = await invoke<string>("read_json_file");
         const parsed = JSON.parse(data);
         setJsonConfigData(parsed);
         setInitialJsonConfigData(parsed);
@@ -50,22 +48,29 @@ export const JsonEditorTab: React.FC = () => {
   };
 
   const saveJsonConfigFile = async () => {
-    console.log("saving...");
     try {
       await invoke("save_json_file", {
-        filePath: "",
         jsonData: JSON.stringify(jsonConfigData),
       });
       setInitialJsonConfigData(jsonConfigData);
       setIsOpen(true);
-      // TODO have some saving process to alert user that it is completed
     } catch (err) {
       setError(`Error saving file: ${err}`);
     }
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>{error}</div>;
+  if (loading)
+    return (
+      <div className="mt-5 border border-zinc-700 bg-white/[3%] p-4 rounded-lg">
+        Loading...
+      </div>
+    );
+  if (error)
+    return (
+      <div className="mt-5 border border-zinc-700 bg-white/[3%] p-4 rounded-lg text-sm text-red-300">
+        {error}
+      </div>
+    );
 
   return (
     <div className="mt-5">

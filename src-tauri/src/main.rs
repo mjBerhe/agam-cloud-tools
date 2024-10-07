@@ -19,7 +19,9 @@ fn main() {
       read_slurm_file,
       run_bash_script_test,
       read_json_file,
-      save_json_file
+      save_json_file,
+      read_shell_file,
+      save_shell_file
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
@@ -44,6 +46,8 @@ const SLURM_FOLDER: &str =
   "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/outputSlurm";
 const CONFIG_JSON_FILE: &str =
   "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/config.json";
+const SEN_BATCH_FILE: &str =
+  "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/Sen_Batch.sh";
 
 // Function to find the Python executable path
 fn find_python_path() -> Result<String, String> {
@@ -221,40 +225,73 @@ fn read_slurm_file(file_name: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn read_json_file(file_path: String) -> Result<String, String> {
-  let final_file_path: PathBuf;
+fn read_json_file() -> Result<String, String> {
+  let file_path: PathBuf;
 
   if cfg!(debug_assertions) {
     // dev mode
-    final_file_path = PathBuf::from(CONFIG_JSON_FILE);
+    file_path = PathBuf::from(CONFIG_JSON_FILE);
   } else {
-    // change to current directory
-    final_file_path = PathBuf::from(file_path)
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    file_path = exe_path.parent().unwrap().join("config.json");
   }
 
   let content =
-    std::fs::read_to_string(final_file_path).map_err(|e| format!("Failed to read file: {}", e))?;
+    std::fs::read_to_string(file_path).map_err(|e| format!("Failed to read file: {}", e))?;
   Ok(content)
 }
 
 #[tauri::command]
-fn save_json_file(file_path: String, json_data: String) -> Result<String, String> {
-  let final_file_path: PathBuf;
+fn save_json_file(json_data: String) -> Result<String, String> {
+  let file_path: PathBuf;
 
   if cfg!(debug_assertions) {
     // dev mode
-    final_file_path = PathBuf::from(CONFIG_JSON_FILE);
+    file_path = PathBuf::from(CONFIG_JSON_FILE);
   } else {
-    // change to current directory
-    final_file_path = PathBuf::from(file_path)
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    file_path = exe_path.parent().unwrap().join("config.json");
   }
 
   // Try to write to the file
-  match std::fs::write(final_file_path, json_data) {
+  match std::fs::write(file_path, json_data) {
     Ok(_) => Ok("File saved successfully".to_string()), // Return success message
     Err(err) => Err(format!("Failed to save file: {}", err)), // Return error message
   }
+}
 
-  // std::fs::write(final_file_path, json_data).map_err(|e| format!("Failed to write file: {}", e))?;
-  // Ok(())
+#[tauri::command]
+fn read_shell_file() -> Result<String, String> {
+  let file_path: PathBuf;
+
+  if cfg!(debug_assertions) {
+    // dev mode
+    file_path = PathBuf::from(SEN_BATCH_FILE);
+  } else {
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    file_path = exe_path.parent().unwrap().join("Sen_Batch.sh");
+  }
+
+  let content =
+    std::fs::read_to_string(file_path).map_err(|e| format!("Failed to read file: {}", e))?;
+  Ok(content)
+}
+
+#[tauri::command]
+fn save_shell_file(shell_data: String) -> Result<String, String> {
+  let file_path: PathBuf;
+
+  if cfg!(debug_assertions) {
+    // dev mode
+    file_path = PathBuf::from(SEN_BATCH_FILE);
+  } else {
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    file_path = exe_path.parent().unwrap().join("Sen_Batch.sh");
+  }
+
+  // Try to write to the file
+  match std::fs::write(file_path, shell_data) {
+    Ok(_) => Ok("File saved successfully".to_string()), // Return success message
+    Err(err) => Err(format!("Failed to save file: {}", err)), // Return error message
+  }
 }
