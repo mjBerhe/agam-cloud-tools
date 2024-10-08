@@ -1,16 +1,8 @@
-import { useEffect, useState, useRef } from "react";
-import { invoke, shell } from "@tauri-apps/api";
-import { cn } from "../lib/utils";
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api";
 import { isEqual } from "lodash";
 
-import {
-  Dialog,
-  DialogPanel,
-  DialogTitle,
-  DialogBackdrop,
-  Input,
-  Textarea,
-} from "@headlessui/react";
+import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from "@headlessui/react";
 import Editor from "@monaco-editor/react";
 import { Button } from "./Button";
 

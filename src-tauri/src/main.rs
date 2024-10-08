@@ -39,6 +39,8 @@ const MONITOR_SCRIPT: &str =
   "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/4_Monitor.sh";
 const DOWNLOAD_SCRIPT: &str =
   "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/5_Download.sh";
+const CANCEL_SCRIPT: &str =
+  "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/6_Cancel.sh";
 
 const LOG_FILE: &str =
   "C:/Users/mattberhe/Code/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_0010/log.log";
@@ -95,6 +97,7 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<(),
       "remote_run" => PathBuf::from(REMOTE_RUN_SCRIPT),
       "monitor" => PathBuf::from(MONITOR_SCRIPT),
       "download" => PathBuf::from(DOWNLOAD_SCRIPT),
+      "cancel" => PathBuf::from(CANCEL_SCRIPT),
       _ => return Err(format!("Unsupported script name: {}", script_name)),
     }
   } else {
@@ -106,6 +109,7 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<(),
       "remote_run" => exe_path.parent().unwrap().join("3_RemoteRun.sh"),
       "monitor" => exe_path.parent().unwrap().join("4_Monitor.sh"),
       "download" => exe_path.parent().unwrap().join("5_Download.sh"),
+      "cancel" => exe_path.parent().unwrap().join("6_Cancel.sh"),
       _ => return Err(format!("Unsupported script name: {}", script_name)),
     };
   }

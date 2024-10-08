@@ -6,6 +6,10 @@ export default {
       fontFamily: {
         geist: ["Geist", "sans-serif"],
       },
+      colors: {
+        destructive: "hsl(0, 100%, 50%)",
+        "destructive-foreground": "hsl(210, 40%, 98%)",
+      },
     },
   },
   plugins: [],

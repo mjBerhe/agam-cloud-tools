@@ -4,15 +4,15 @@ import { useState, useEffect } from "react";
 import "./App.css";
 import { invoke } from "@tauri-apps/api";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
-// import { CleanedOutput } from "./components/cleanedOutput";
-import { ScriptTab } from "./components/ScriptTab";
-import { Dashboard, Status } from "./components/Dashboard";
 import { cn } from "./lib/utils";
 import { useLogFile } from "./hooks/useLogFile";
-import { OutputTab } from "./components/OutputTab";
 import { useSlurmOutputFile } from "./hooks/useSlurmOutputFile";
+
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
+import { Button } from "./components/Button";
+import { ScriptTab } from "./components/ScriptTab";
+import { Dashboard, Status } from "./components/Dashboard";
+import { OutputTab } from "./components/OutputTab";
 import { Log } from "./components/Log";
 import { JsonEditorTab } from "./components/JsonEditorTab";
 import { SenBatchEditorTab } from "./components/SenBatchEditorTab";
@@ -23,6 +23,7 @@ export type Script =
   | "remote_run"
   | "monitor"
   | "download"
+  | "cancel"
   | "output";
 export type Tab = {
   name: string;
@@ -74,6 +75,7 @@ function App() {
     upload: [],
     remote_run: [],
     download: [],
+    cancel: [],
     output: [],
   });
   const [isRunning, setIsRunning] = useState<Record<Script, boolean>>({
@@ -82,6 +84,7 @@ function App() {
     upload: false,
     remote_run: false,
     download: false,
+    cancel: false,
     output: false,
   });
   const [isCompleted, setIsCompleted] = useState<Record<Script, boolean>>({
@@ -90,6 +93,7 @@ function App() {
     upload: false,
     remote_run: false,
     download: false,
+    cancel: false,
     output: false,
   });
   const [errors, setErrors] = useState<Record<Script, string | null>>({
@@ -98,6 +102,7 @@ function App() {
     upload: null,
     remote_run: null,
     download: null,
+    cancel: null,
     output: null,
   });
 
@@ -267,7 +272,6 @@ function App() {
     // Call the Tauri command to run the shell script
     invoke("run_bash_script_test", { scriptName: scriptName })
       .then(() => {
-        console.log(`$${scriptName} script started`);
         // run monitor script directly after remote_run
         if (scriptName === "remote_run") {
           runScript("monitor");
@@ -278,6 +282,18 @@ function App() {
         setIsRunning((prev) => ({ ...prev, [scriptName]: false }));
         setErrors((prev) => ({ ...prev, [scriptName]: err }));
       });
+  };
+
+  const cancelAllJobs = () => {
+    try {
+      invoke("run_bash_script_test", { scriptName: "cancel" });
+    } catch (err) {
+      if (typeof err === "string") {
+        setErrors((prev) => ({ ...prev, cancel: err }));
+      } else {
+        console.error(err);
+      }
+    }
   };
 
   return (
@@ -313,6 +329,20 @@ function App() {
                     selectedScript={selectedTab}
                     errorStatus={errors}
                   />
+                </div>
+
+                <div className="mt-4 w-full flex">
+                  <Button
+                    className="w-full"
+                    variant={"destructive"}
+                    disabled={
+                      !(isRunning["remote_run"] && isRunning["monitor"]) ||
+                      isRunning["cancel"]
+                    }
+                    onClick={cancelAllJobs}
+                  >
+                    Cancel All Jobs
+                  </Button>
                 </div>
               </div>
 
@@ -395,11 +425,7 @@ function App() {
             </div>
           </TabPanel>
           <TabPanel>
-            <div className="flex flex-col h-full w-full">
-              <p className="mt-5 text-xl font-semibold text-gray-200">Config File</p>
-
-              <JsonEditorTab />
-            </div>
+            <JsonEditorTab />
           </TabPanel>
           <TabPanel>
             <SenBatchEditorTab />
