@@ -65,6 +65,7 @@ const scripts: Script[] = [
   "remote_run",
   // "monitor",
   "download",
+  "cancel",
   "output",
 ];
 
@@ -121,8 +122,6 @@ function App() {
   const isDownloadDisabled =
     isCompleted["download"] || !isCompleted["remote_run"] || isRunning["download"];
 
-  // hook to get current log.log file
-  // TODO: need to edit path param
   const { logData, slurmNumber } = useLogFile([
     isCompleted["automate"],
     isCompleted["monitor"],
@@ -130,15 +129,16 @@ function App() {
   const { slurmData } = useSlurmOutputFile(slurmNumber);
 
   // checking log file to find where we currently are
-  if (logData.includes("Bash files generated") && isCompleted["automate"] === false) {
-    setIsCompleted((prev) => ({ ...prev, automate: true }));
-  }
-  if (slurmData && slurmData !== "" && isCompleted["download"] === false) {
-    setIsCompleted((prev) => ({ ...prev, download: true }));
-  }
+  useEffect(() => {
+    if (logData.includes("Bash files generated") && isCompleted["automate"] === false) {
+      setIsCompleted((prev) => ({ ...prev, automate: true }));
+    }
+    if (slurmData && slurmData !== "" && isCompleted["download"] === false) {
+      setIsCompleted((prev) => ({ ...prev, download: true }));
+    }
+  }, [slurmData, logData]);
 
-  // loop over each script, and create listener events for incoming output and a finish message
-  // purposely not going over monitor script as it has its own seperate logic
+  // loop over each script (EXCLUDING MONITOR) and create listener events for incoming output and a finish message
   useEffect(() => {
     const unlistenFns: Record<
       string,
@@ -151,11 +151,25 @@ function App() {
           ...prev,
           [scriptName]: [...prev[scriptName], e.payload],
         }));
+
+        // add cancel output to the monitor output
+        if (scriptName === "cancel") {
+          setMonitorOutput((prev) => [...prev, e.payload]);
+        }
       });
 
       const unlistenFinished = listen<string>(`script-finished-${scriptName}`, (e) => {
-        console.log(e.payload);
-        if (scriptName !== "remote_run") {
+        if (scriptName === "cancel") {
+          console.log(e.payload);
+          setIsRunning((prev) => ({ ...prev, cancel: false }));
+          setIsCompleted((prev) => ({
+            ...prev,
+            remote_run: false,
+            upload: false,
+            cancel: true,
+          }));
+        } else if (scriptName !== "remote_run") {
+          console.log(e.payload);
           setIsRunning((prev) => ({ ...prev, [scriptName]: false }));
           setIsCompleted((prev) => ({ ...prev, [scriptName]: true }));
         }
@@ -198,12 +212,25 @@ function App() {
               }));
             }
             if (stage === 3) {
-              setIsCompleted((prev) => ({
-                ...prev,
-                automate: true,
-                upload: true,
-                remote_run: true,
-              }));
+              // if remote run just finished, first check in that was because of cancel or naturally finished
+              // if cancel, reset back to upload stage, else continue to download stage
+              setIsCompleted((prev) => {
+                if (prev.cancel === true) {
+                  return {
+                    ...prev,
+                    automate: true,
+                    upload: false,
+                    remote_run: false,
+                  };
+                } else {
+                  return {
+                    ...prev,
+                    automate: true,
+                    upload: true,
+                    remote_run: true,
+                  };
+                }
+              });
               setIsRunning((prev) => ({
                 ...prev,
                 remote_run: false,
@@ -241,6 +268,8 @@ function App() {
     };
   }, []);
 
+  // when initial monitor event listener is ready, start it right away
+  // used to check the overall status and to see which step we are currently on
   useEffect(() => {
     if (isMonitorListenerReady) {
       setMonitorOutput([]);
@@ -282,18 +311,6 @@ function App() {
         setIsRunning((prev) => ({ ...prev, [scriptName]: false }));
         setErrors((prev) => ({ ...prev, [scriptName]: err }));
       });
-  };
-
-  const cancelAllJobs = () => {
-    try {
-      invoke("run_bash_script_test", { scriptName: "cancel" });
-    } catch (err) {
-      if (typeof err === "string") {
-        setErrors((prev) => ({ ...prev, cancel: err }));
-      } else {
-        console.error(err);
-      }
-    }
   };
 
   return (
@@ -340,7 +357,7 @@ function App() {
                       !(isRunning["remote_run"] && isRunning["monitor"]) ||
                       isRunning["cancel"]
                     }
-                    onClick={cancelAllJobs}
+                    onClick={() => runScript("cancel")}
                   >
                     Cancel All Jobs
                   </Button>
@@ -416,7 +433,7 @@ function App() {
             <SenBatchEditorTab />
           </TabPanel>
           <TabPanel>
-            <Log logData={logData} />
+            <Log />
           </TabPanel>
           <TabPanel>
             <div className="flex flex-col h-full w-full">

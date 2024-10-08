@@ -24,6 +24,7 @@ export const JsonEditorTab: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [editorError, setEditorError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadJsonFile = async () => {
@@ -50,16 +51,26 @@ export const JsonEditorTab: React.FC = () => {
   //   }));
   // };
 
+  // TODO: show error when changing remote_system_path_check
+
   const saveJsonConfigFile = async () => {
-    try {
-      await invoke("save_json_file", {
-        // jsonData: JSON.stringify(jsonConfigData),
-        jsonData: jsonConfigData,
-      });
-      setInitialJsonConfigData(jsonConfigData);
-      setIsOpen(true);
-    } catch (err) {
-      setError(`Error saving file: ${err}`);
+    const split = jsonConfigData.split("\n");
+
+    if (split[4] !== initialJsonConfigData.split("\n")[4]) {
+      setEditorError(
+        "remote_system_path_check has been modified, please revert those changes"
+      );
+    } else {
+      try {
+        await invoke("save_json_file", {
+          // jsonData: JSON.stringify(jsonConfigData),
+          jsonData: jsonConfigData,
+        });
+        setInitialJsonConfigData(jsonConfigData);
+        setIsOpen(true);
+      } catch (err) {
+        setError(`Error saving file: ${err}`);
+      }
     }
   };
 
@@ -131,6 +142,10 @@ export const JsonEditorTab: React.FC = () => {
             Reset
           </Button>
         </div>
+
+        {editorError && (
+          <p className="text-red-400 text-sm text-center mt-2">{editorError}</p>
+        )}
 
         <Dialog
           open={isOpen}

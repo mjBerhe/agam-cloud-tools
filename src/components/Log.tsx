@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api";
 import { Editor } from "@monaco-editor/react";
 
-export const Log: React.FC<{ logData?: string }> = () => {
+export const Log: React.FC = () => {
   const [logData, setLogData] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);

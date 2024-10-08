@@ -156,7 +156,7 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<(),
   window
     .emit(
       format!("script-finished-{}", script_name).as_str(),
-      "Script completed",
+      (script_name, "Script completed"),
     )
     .map_err(|e| e.to_string())?;
 

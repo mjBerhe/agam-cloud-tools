@@ -7,17 +7,18 @@ export const useLogFile = (dependencies: unknown[]) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
+  const regex = /Submitted batch job (\d{7})/g;
+
   useEffect(() => {
     const fetchLogFile = async () => {
       try {
         setLoading(true);
         const data = await invoke<string>("read_log_file");
         if (data) {
-          const regex = /Submitted batch job (\d{7})/;
-          const match = data.match(regex);
-          if (match) {
-            const id = match[1];
-            setSlurmNumber(id);
+          const matches = [...logData.matchAll(regex)];
+          if (matches.length > 0) {
+            const lastJobId = matches[matches.length - 1][1];
+            setSlurmNumber(lastJobId);
           }
         }
         setLogData(data);

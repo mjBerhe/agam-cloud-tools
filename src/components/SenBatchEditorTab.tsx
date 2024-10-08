@@ -36,7 +36,7 @@ export const SenBatchEditorTab: React.FC = () => {
     const split = shellData.split("\n");
 
     if (split[4] !== initialShellData[4] || split[5] !== initialShellData[5]) {
-      setEditorError("Lines 5 or 6 have been edited, please revert those changes");
+      setEditorError("Lines 5 or 6 have been modified, please revert those changes");
     } else {
       try {
         await invoke("save_shell_file", { shellData: shellData });
