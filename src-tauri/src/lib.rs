@@ -11,8 +11,20 @@ use tauri::Emitter;
 use tauri::Window;
 use winapi::um::winbase::CREATE_NO_WINDOW;
 
+const AUTOMATE_SCRIPT: &str =
+  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/1_Automate.sh";
+const UPLOAD_SCRIPT: &str =
+  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/2_1_Upload.sh";
+const REMOTE_RUN_SCRIPT: &str =
+  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/3_RemoteRun.sh";
 const MONITOR_SCRIPT: &str =
   "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/4_Monitor.sh";
+const MONITOR_DOWNLOAD_SCRIPT: &str =
+  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/4_1_Monitor_with_Download.sh";
+const DOWNLOAD_SCRIPT: &str =
+  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/5_Download.sh";
+const CANCEL_SCRIPT: &str =
+  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/6_Cancel.sh";
 
 const LOG_FILE: &str =
   "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/log.log";
@@ -34,13 +46,14 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<(),
     // dev mode
     script_path = match script_name.as_str() {
       //   "test" => PathBuf::from(TEST_SCRIPT),
-      //   "automate" => PathBuf::from(AUTOMATE_SCRIPT),
-      //   "upload" => PathBuf::from(UPLOAD_SCRIPT),
+      "automate" => PathBuf::from(AUTOMATE_SCRIPT),
+      "upload" => PathBuf::from(UPLOAD_SCRIPT),
       //   "upload_sh" => PathBuf::from(UPLOAD_SCRIPT_SH),
-      //   "remote_run" => PathBuf::from(REMOTE_RUN_SCRIPT),
+      "remote_run" => PathBuf::from(REMOTE_RUN_SCRIPT),
       "monitor" => PathBuf::from(MONITOR_SCRIPT),
-      //   "download" => PathBuf::from(DOWNLOAD_SCRIPT),
-      //   "cancel" => PathBuf::from(CANCEL_SCRIPT),
+      "monitor_download" => PathBuf::from(MONITOR_DOWNLOAD_SCRIPT),
+      "download" => PathBuf::from(DOWNLOAD_SCRIPT),
+      "cancel" => PathBuf::from(CANCEL_SCRIPT),
       _ => return Err(format!("Unsupported script name: {}", script_name)),
     }
   } else {

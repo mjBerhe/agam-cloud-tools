@@ -1,4 +1,5 @@
 /** @type {import('tailwindcss').Config} */
+
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
@@ -18,6 +19,9 @@ export default {
           700: "#242426",
           600: "#3a3a3c",
           500: "#505051",
+          300: "#b8b9c1",
+          200: "#d9d9de",
+          100: "#EEEEF0",
         },
         primary: {
           400: "#37C6F4",

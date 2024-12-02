@@ -1,12 +1,23 @@
 import { useState, useEffect } from "react";
 import { useOutputStore, useStatusStore } from "../stores";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 
+import { cn } from "../utils/styles";
+import { motion } from "framer-motion";
 import type { Script } from "../types/scripts";
 
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
+import ScriptOutput from "../components/scripts/ScriptOutput";
 
-const tabs = ["Cloud Tools", "Config File", "Sen Batch File", "Log File", "Output Slurm"];
+// const tabs = ["Cloud Tools", "Config File", "Sen Batch File", "Log File", "Output Slurm"];
+const tabs = [
+  { id: 0, label: "Cloud Tools" },
+  { id: 1, label: "Config File" },
+  { id: 2, label: "Sen Batch File" },
+  { id: 3, label: "Log File" },
+  { id: 4, label: "Output Slurm" },
+];
 
 const scripts: Script[] = [
   "automate",
@@ -21,6 +32,8 @@ const scripts: Script[] = [
 export default function Root() {
   const { outputs, addOutput, clearOutput } = useOutputStore();
   const { status, startScript, completeScript, resetStatus, setError } = useStatusStore();
+
+  const [selectedTab, setSelectedTab] = useState<number>(tabs[0].id);
 
   // loop over each script (EXCLUDING MONITOR) and create listener events for incoming output and a finish message
   useEffect(() => {
@@ -70,27 +83,48 @@ export default function Root() {
     };
   }, []);
 
+  const runScript = async (script: Script) => {
+    clearOutput(script);
+    startScript(script);
+
+    try {
+      const run = await invoke("run_bash_script_test", { scriptName: script });
+    } catch (err) {
+      // do we need to complete if errored?
+      setError(script, err as string);
+    }
+  };
+
   return (
     <main className="container mx-auto min-h-screen">
-      <div className="py-8 flex flex-col justify-center px-2">
-        <TabGroup className="">
-          <TabList className="flex gap-x-4">
-            {tabs.map((tab) => (
-              <Tab
-                key={tab}
-                className="rounded-full py-1 px-3 text-sm/6 font-semibold text-white focus:outline-none data-[selected]:bg-white/10 data-[hover]:bg-white/5 data-[selected]:data-[hover]:bg-white/10 data-[focus]:outline-1 data-[focus]:outline-white"
-              >
-                {tab}
-              </Tab>
-            ))}
-          </TabList>
+      <div className="flex flex-col">
+        <div className="pt-8 flex space-x-2 justify-center">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setSelectedTab(tab.id)}
+              className={cn(
+                selectedTab === tab.id ? "" : "hover:text-white/60",
+                "relative rounded-full px-3 py-1.5 text-sm/6 font-light text-white outline-sky-400 transition focus-visible:outline-2"
+              )}
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            >
+              {selectedTab === tab.id && (
+                <motion.span
+                  layoutId="bubble"
+                  className="absolute inset-0 z-10 bg-blue-50 mix-blend-difference"
+                  style={{ borderRadius: 9999 }}
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-          <TabPanels>
-            <TabPanel>
-              <div></div>
-            </TabPanel>
-          </TabPanels>
-        </TabGroup>
+        <div className="mt-6">
+          {selectedTab === 0 && <ScriptOutput runScript={runScript} />}
+        </div>
       </div>
     </main>
   );
