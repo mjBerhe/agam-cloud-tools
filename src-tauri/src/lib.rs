@@ -28,12 +28,23 @@ const CANCEL_SCRIPT: &str =
 
 const LOG_FILE: &str =
   "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/log.log";
+const CONFIG_JSON_FILE: &str =
+  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/config.json";
+const SEN_BATCH_FILE: &str =
+  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/Sen_Batch.sh";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
-    .invoke_handler(tauri::generate_handler![run_bash_script_test])
+    .invoke_handler(tauri::generate_handler![
+      run_bash_script_test,
+      read_json_file,
+      save_json_file,
+      read_shell_file,
+      save_shell_file,
+      read_log_file
+    ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
@@ -176,4 +187,107 @@ fn find_python_path() -> Result<String, String> {
     let error_message = String::from_utf8_lossy(&output.stderr).to_string();
     Err(format!("Error finding Python path: {}", error_message))
   }
+}
+
+#[tauri::command]
+fn read_json_file() -> Result<String, String> {
+  let file_path: PathBuf;
+
+  if cfg!(debug_assertions) {
+    // dev mode
+    file_path = PathBuf::from(CONFIG_JSON_FILE);
+  } else {
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    file_path = exe_path.parent().unwrap().join("config.json");
+  }
+
+  let content =
+    std::fs::read_to_string(file_path).map_err(|e| format!("Failed to read file: {}", e))?;
+  Ok(content)
+}
+
+#[tauri::command]
+fn save_json_file(json_data: String) -> Result<String, String> {
+  let file_path: PathBuf;
+
+  if cfg!(debug_assertions) {
+    // dev mode
+    file_path = PathBuf::from(CONFIG_JSON_FILE);
+  } else {
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    file_path = exe_path.parent().unwrap().join("config.json");
+  }
+
+  // Try to write to the file
+  match std::fs::write(file_path, json_data) {
+    Ok(_) => Ok("File saved successfully".to_string()), // Return success message
+    Err(err) => Err(format!("Failed to save file: {}", err)), // Return error message
+  }
+}
+
+#[tauri::command]
+fn read_shell_file() -> Result<String, String> {
+  let file_path: PathBuf;
+
+  if cfg!(debug_assertions) {
+    // dev mode
+    file_path = PathBuf::from(SEN_BATCH_FILE);
+  } else {
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    file_path = exe_path.parent().unwrap().join("Sen_Batch.sh");
+  }
+
+  let content =
+    std::fs::read_to_string(file_path).map_err(|e| format!("Failed to read file: {}", e))?;
+  Ok(content)
+}
+
+#[tauri::command]
+fn save_shell_file(shell_data: String) -> Result<String, String> {
+  let file_path: PathBuf;
+
+  if cfg!(debug_assertions) {
+    // dev mode
+    file_path = PathBuf::from(SEN_BATCH_FILE);
+  } else {
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    file_path = exe_path.parent().unwrap().join("Sen_Batch.sh");
+  }
+
+  // Try to write to the file
+  match std::fs::write(file_path, shell_data) {
+    Ok(_) => Ok("File saved successfully".to_string()), // Return success message
+    Err(err) => Err(format!("Failed to save file: {}", err)), // Return error message
+  }
+}
+
+#[tauri::command]
+fn read_log_file() -> Result<String, String> {
+  // Check if the file exists
+  let file_path: PathBuf;
+
+  if cfg!(debug_assertions) {
+    // development mode
+    file_path = PathBuf::from(LOG_FILE);
+  } else {
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    file_path = exe_path.parent().unwrap().join("log.log");
+  }
+
+  // Check if the log file exists
+  if !file_path.exists() {
+    return Err(format!("File not found: {:?}", file_path));
+  }
+
+  // Open the log file
+  let mut file = File::open(&file_path).map_err(|e| e.to_string())?;
+  let mut contents = String::new();
+
+  // Read the entire file into a single string
+  file
+    .read_to_string(&mut contents)
+    .map_err(|e| e.to_string())?;
+
+  // Return the file contents as the result
+  Ok(contents)
 }

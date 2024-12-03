@@ -8,6 +8,9 @@ import { motion } from "framer-motion";
 import type { Script } from "../types/scripts";
 
 import ScriptOutput from "../components/scripts/ScriptOutput";
+import ConfigEditor from "../components/ConfigEditor";
+import SenBatchEditor from "../components/SenBatchEditor";
+import Log from "../components/Log";
 
 // const tabs = ["Cloud Tools", "Config File", "Sen Batch File", "Log File", "Output Slurm"];
 const tabs = [
@@ -123,6 +126,9 @@ export default function Root() {
 
         <div className="mt-6">
           {selectedTab === 0 && <ScriptOutput runScript={runScript} />}
+          {selectedTab === 1 && <ConfigEditor />}
+          {selectedTab === 2 && <SenBatchEditor />}
+          {selectedTab === 3 && <Log />}
         </div>
       </div>
     </main>
