@@ -7,7 +7,6 @@ import { cn } from "../utils/styles";
 import { motion } from "framer-motion";
 import type { Script } from "../types/scripts";
 
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import ScriptOutput from "../components/scripts/ScriptOutput";
 
 // const tabs = ["Cloud Tools", "Config File", "Sen Batch File", "Log File", "Output Slurm"];
@@ -30,8 +29,8 @@ const scripts: Script[] = [
 ];
 
 export default function Root() {
-  const { outputs, addOutput, clearOutput } = useOutputStore();
-  const { status, startScript, completeScript, resetStatus, setError } = useStatusStore();
+  const { addOutput, clearOutput } = useOutputStore();
+  const { startScript, completeScript, setError } = useStatusStore();
 
   const [selectedTab, setSelectedTab] = useState<number>(tabs[0].id);
 
@@ -52,7 +51,7 @@ export default function Root() {
         }
       });
 
-      const unlistenFinished = listen<string>(`script-finished-${scriptName}`, (e) => {
+      const unlistenFinished = listen<string>(`script-finished-${scriptName}`, () => {
         completeScript(scriptName);
         // if (scriptName === "cancel") {
         //   console.log(e.payload);
@@ -88,7 +87,7 @@ export default function Root() {
     startScript(script);
 
     try {
-      const run = await invoke("run_bash_script_test", { scriptName: script });
+      await invoke("run_bash_script_test", { scriptName: script });
     } catch (err) {
       // do we need to complete if errored?
       setError(script, err as string);

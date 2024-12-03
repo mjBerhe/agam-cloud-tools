@@ -59,12 +59,15 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<(),
   } else {
     let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
     script_path = match script_name.as_str() {
-      "test" => exe_path.parent().unwrap().join("test.sh"),
       "automate" => exe_path.parent().unwrap().join("1_Automate.sh"),
       "upload" => exe_path.parent().unwrap().join("2_1_Upload.sh"),
       "upload_sh" => exe_path.parent().unwrap().join("2_2_Upload_sh.sh"),
       "remote_run" => exe_path.parent().unwrap().join("3_RemoteRun.sh"),
       "monitor" => exe_path.parent().unwrap().join("4_Monitor.sh"),
+      "monitor_download" => exe_path
+        .parent()
+        .unwrap()
+        .join("4_1_Monitor_with_Download.sh"),
       "download" => exe_path.parent().unwrap().join("5_Download.sh"),
       "cancel" => exe_path.parent().unwrap().join("6_Cancel.sh"),
       _ => return Err(format!("Unsupported script name: {}", script_name)),
