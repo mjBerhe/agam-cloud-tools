@@ -50,7 +50,7 @@ pub fn run() {
 }
 
 #[tauri::command]
-async fn run_bash_script_test(window: Window, script_name: String) -> Result<(), String> {
+async fn run_bash_script_test(window: Window, script_name: String) -> Result<Vec<String>, String> {
   let script_path: PathBuf;
 
   if cfg!(debug_assertions) {
@@ -107,11 +107,16 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<(),
   let stdout = child.stdout.as_mut().ok_or("Failed to open stdout")?;
   let reader = std::io::BufReader::new(stdout);
 
+  let mut collected_output = Vec::new(); // Collect output here
+
   // Read lines from the script's output and emit as Tauri events
   for line in reader.lines() {
     match line {
       Ok(output) => {
-        println!("Emitting: {}", output); // Add this line to debug
+        println!("Emitting from {}: {}", script_name, output); // Add this line to debug
+
+        collected_output.push(output.clone()); // Collect the output
+
         window
           .emit(format!("script-output-{}", script_name).as_str(), output) // Emit event with output
           .map_err(|e| e.to_string())?;
@@ -153,7 +158,7 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<(),
     std::fs::write(&log_file_path, lines.join("\n")).map_err(|e| e.to_string())?;
   }
 
-  Ok(())
+  Ok(collected_output)
 }
 
 // Function to find the Python executable path

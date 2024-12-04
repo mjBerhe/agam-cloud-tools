@@ -2,6 +2,15 @@ import { useState, useEffect } from "react";
 import { useOutputStore, useStatusStore } from "../stores";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+// import { TextShimmer } from '@/components/core/text-shimmer';
+
+// export function TextShimmerBasic() {
+//   return (
+//     <TextShimmer className="font-mono text-sm" duration={1}>
+//       Generating code...
+//     </TextShimmer>
+//   );
+// }
 
 import { cn } from "../utils/styles";
 import { motion } from "framer-motion";
@@ -33,11 +42,10 @@ const scripts: Script[] = [
 
 export default function Root() {
   const { addOutput, clearOutput } = useOutputStore();
-  const { startScript, completeScript, setError } = useStatusStore();
+  const { startScript, completeScript, setError, resetStatus } = useStatusStore();
 
   const [selectedTab, setSelectedTab] = useState<number>(tabs[0].id);
 
-  // loop over each script (EXCLUDING MONITOR) and create listener events for incoming output and a finish message
   useEffect(() => {
     const unlistenFns: Record<
       string,
@@ -55,21 +63,25 @@ export default function Root() {
       });
 
       const unlistenFinished = listen<string>(`script-finished-${scriptName}`, () => {
-        completeScript(scriptName);
-        // if (scriptName === "cancel") {
-        //   console.log(e.payload);
-        //   setIsRunning((prev) => ({ ...prev, cancel: false }));
-        //   setIsCompleted((prev) => ({
-        //     ...prev,
-        //     remote_run: false,
-        //     upload: false,
-        //     cancel: true,
-        //   }));
-        // } else if (scriptName !== "remote_run") {
-        //   console.log(e.payload);
-        //   setIsRunning((prev) => ({ ...prev, [scriptName]: false }));
-        //   setIsCompleted((prev) => ({ ...prev, [scriptName]: true }));
-        // }
+        if (scriptName === "cancel") {
+          // do not complete
+        } else if (scriptName === "monitor_download") {
+          // cancel script is only fully completed once monitor_download finishes
+          completeScript("cancel");
+          completeScript(scriptName);
+        } else if (scriptName === "automate") {
+          completeScript(scriptName);
+          resetStatus("upload");
+          resetStatus("remote_run");
+          resetStatus("monitor_download");
+        } else {
+          completeScript(scriptName);
+        }
+
+        // auto trigger monitor_download after remote_run is finished
+        if (scriptName === "remote_run") {
+          runScript("monitor_download");
+        }
       });
 
       unlistenFns[scriptName] = { output: unlistenOutput, finished: unlistenFinished };
@@ -83,6 +95,25 @@ export default function Root() {
         finished.then((fn) => fn());
       });
     };
+  }, []);
+
+  useEffect(() => {
+    const checkMonitorDownload = async () => {
+      try {
+        startScript("monitor_download");
+        const response = await invoke<string[]>("run_bash_script_test", {
+          scriptName: "monitor_download",
+        });
+        if (response.find((x) => x === "No Job ID found in log.log.")) {
+          resetStatus("monitor_download");
+        }
+        console.log(response);
+      } catch (err) {
+        setError("monitor_download", err as string);
+      }
+    };
+
+    checkMonitorDownload();
   }, []);
 
   const runScript = async (script: Script) => {
