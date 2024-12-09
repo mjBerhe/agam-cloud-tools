@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
+use regex::Regex;
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -32,6 +33,8 @@ const CONFIG_JSON_FILE: &str =
   "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/config.json";
 const SEN_BATCH_FILE: &str =
   "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/Sen_Batch.sh";
+const SLURM_FOLDER: &str =
+  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/outputSlurm";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -43,7 +46,9 @@ pub fn run() {
       save_json_file,
       read_shell_file,
       save_shell_file,
-      read_log_file
+      read_log_file,
+      read_slurm_file,
+      read_all_slurm_files
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
@@ -137,26 +142,26 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<Vec
     .map_err(|e| e.to_string())?;
 
   // if running cancel, delete "Submitted batch job {7digits}" from log file
-  if script_name == "cancel" {
-    let log_file_path = if cfg!(debug_assertions) {
-      PathBuf::from(LOG_FILE)
-    } else {
-      let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
-      exe_path.parent().unwrap().join("log.log")
-    };
+  // if script_name == "cancel" {
+  //   let log_file_path = if cfg!(debug_assertions) {
+  //     PathBuf::from(LOG_FILE)
+  //   } else {
+  //     let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+  //     exe_path.parent().unwrap().join("log.log")
+  //   };
 
-    // Read the log file
-    let contents = std::fs::read_to_string(&log_file_path).map_err(|e| e.to_string())?;
+  //   // Read the log file
+  //   let contents = std::fs::read_to_string(&log_file_path).map_err(|e| e.to_string())?;
 
-    // Split the contents into lines and remove the last line
-    let mut lines: Vec<&str> = contents.lines().collect();
-    if !lines.is_empty() {
-      lines.pop(); // Remove the last line
-    }
+  //   // Split the contents into lines and remove the last line
+  //   let mut lines: Vec<&str> = contents.lines().collect();
+  //   if !lines.is_empty() {
+  //     lines.pop(); // Remove the last line
+  //   }
 
-    // Write the modified contents back to the log file
-    std::fs::write(&log_file_path, lines.join("\n")).map_err(|e| e.to_string())?;
-  }
+  //   // Write the modified contents back to the log file
+  //   std::fs::write(&log_file_path, lines.join("\n")).map_err(|e| e.to_string())?;
+  // }
 
   Ok(collected_output)
 }
@@ -295,4 +300,85 @@ fn read_log_file() -> Result<String, String> {
 
   // Return the file contents as the result
   Ok(contents)
+}
+
+#[tauri::command]
+fn read_slurm_file(file_name: String) -> Result<String, String> {
+  let folder_path: PathBuf;
+
+  if cfg!(debug_assertions) {
+    // development mode
+    folder_path = PathBuf::from(SLURM_FOLDER);
+  } else {
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    folder_path = exe_path.parent().unwrap().join("../outputSlurm");
+  }
+
+  // Construct the file name like "slurm-{file_name}.out"
+  let expected_file_name = format!("slurm-{}.out", file_name);
+
+  // Read the directory contents
+  let dir = Path::new(&folder_path);
+  if !dir.is_dir() {
+    return Err("Provided path is not a valid directory".to_string());
+  }
+
+  // Check if the expected file exists in the directory
+  let file_path = dir.join(&expected_file_name);
+  if !file_path.exists() {
+    return Err(format!("No file found with name {}", expected_file_name));
+  }
+
+  // Read the file content
+  let content = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
+
+  // Return the file content
+  Ok(content)
+}
+
+#[tauri::command]
+fn read_all_slurm_files() -> Result<Vec<(String, String)>, String> {
+  let folder_path: PathBuf;
+
+  if cfg!(debug_assertions) {
+    // development mode
+    folder_path = PathBuf::from(SLURM_FOLDER);
+  } else {
+    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    folder_path = exe_path.parent().unwrap().join("../outputSlurm");
+  }
+
+  // Ensure the folder path exists and is a directory
+  let dir = Path::new(&folder_path);
+  if !dir.is_dir() {
+    return Err("Provided path is not a valid directory".to_string());
+  }
+
+  // Regex pattern for "slurm-{7 digits}.out"
+  let re =
+    Regex::new(r"^slurm-(\d{7})\.out$").map_err(|e| format!("Failed to compile regex: {}", e))?;
+
+  // Vector to store file names and their contents
+  let mut results = Vec::new();
+
+  // Iterate through the directory entries
+  for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
+    let entry = entry.map_err(|e| e.to_string())?;
+    let file_name = entry.file_name();
+    let file_name_str = file_name.to_string_lossy();
+
+    // Check if the file matches the regex pattern
+    if re.is_match(&file_name_str) {
+      let file_path = entry.path();
+
+      // Read the file content
+      let content = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
+
+      // Store the file name and content as a tuple
+      results.push((file_name_str.to_string(), content));
+    }
+  }
+
+  // Return the results
+  Ok(results)
 }

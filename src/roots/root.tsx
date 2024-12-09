@@ -20,6 +20,7 @@ import ScriptOutput from "../components/scripts/ScriptOutput";
 import ConfigEditor from "../components/ConfigEditor";
 import SenBatchEditor from "../components/SenBatchEditor";
 import Log from "../components/Log";
+import SlurmOutput from "../components/SlurmOutput";
 
 // const tabs = ["Cloud Tools", "Config File", "Sen Batch File", "Log File", "Output Slurm"];
 const tabs = [
@@ -107,7 +108,7 @@ export default function Root() {
         if (response.find((x) => x === "No Job ID found in log.log.")) {
           resetStatus("monitor_download");
         }
-        console.log(response);
+        // console.log(response);
       } catch (err) {
         setError("monitor_download", err as string);
       }
@@ -160,6 +161,7 @@ export default function Root() {
           {selectedTab === 1 && <ConfigEditor />}
           {selectedTab === 2 && <SenBatchEditor />}
           {selectedTab === 3 && <Log />}
+          {selectedTab === 4 && <SlurmOutput />}
         </div>
       </div>
     </main>

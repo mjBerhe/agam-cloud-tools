@@ -55,7 +55,6 @@ const ScriptOutput: React.FC<{ runScript: (script: Script) => void }> = ({
   const { outputs } = useOutputStore();
 
   const output = outputs[selectedScript.scriptName];
-  const status = allStatuses[selectedScript.scriptName];
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -187,26 +186,16 @@ const ScriptOutput: React.FC<{ runScript: (script: Script) => void }> = ({
               {tabs.map((tab) => (
                 <TabPanel className="pt-0" key={tab.id}>
                   <div className="flex flex-col min-h-[360px] px-4 pb-4 pt-2">
-                    {/* <p>
-                      {status.isRunning
-                        ? `${selectedScript.name} is running`
-                        : status.isCompleted
-                        ? `${selectedScript.name} has completed`
-                        : status.error
-                        ? `${selectedScript.name} has error: ${status.error}`
-                        : `${selectedScript.name} is idle`}
-                    </p> */}
-
                     <div className="bg-black flex flex-col overflow-y-auto h-[300px] shadow-lg px-4 py-3 mt-2 rounded-lg">
                       {output.map((x, i) => (
-                        <p
+                        <TextEffect
                           key={`${x}-${i}`}
+                          per="line"
+                          preset="slide"
                           className="text-sm/6 text-gray-300 font-light"
                         >
-                          <TextEffect per="line" preset="slide">
-                            {x}
-                          </TextEffect>
-                        </p>
+                          {x}
+                        </TextEffect>
                       ))}
                       <div ref={bottomRef}></div>
                     </div>
