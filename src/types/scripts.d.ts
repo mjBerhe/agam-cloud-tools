@@ -1,9 +1,1 @@
-export type Script =
-  | "automate"
-  | "upload"
-  | "remote_run"
-  | "monitor"
-  | "monitor_download"
-  | "download"
-  | "cancel"
-  | "output";
+export type Script = "automate" | "upload" | "remote_run" | "monitor_download" | "cancel";

@@ -37,24 +37,25 @@ const ConfigEditor: React.FC = () => {
   // TODO: show error when changing remote_system_path_check
 
   const saveJsonConfigFile = async () => {
-    const split = jsonConfigData.split("\n");
+    // const split = jsonConfigData.split("\n");
 
-    if (split[4] !== initialJsonConfigData.split("\n")[4]) {
-      setEditorError(
-        "remote_system_path_check has been modified, please revert those changes"
-      );
-    } else {
-      try {
-        await invoke("save_json_file", {
-          // jsonData: JSON.stringify(jsonConfigData),
-          jsonData: jsonConfigData,
-        });
-        setInitialJsonConfigData(jsonConfigData);
-        setIsOpen(true);
-      } catch (err) {
-        setError(`Error saving file: ${err}`);
-      }
+    // if (split[4] !== initialJsonConfigData.split("\n")[4]) {
+    //   setEditorError(
+    //     "remote_system_path_check has been modified, please revert those changes"
+    //   );
+    // } else {
+    try {
+      setEditorError("");
+      await invoke("save_json_file", {
+        // jsonData: JSON.stringify(jsonConfigData),
+        jsonData: jsonConfigData,
+      });
+      setInitialJsonConfigData(jsonConfigData);
+      setIsOpen(true);
+    } catch (err) {
+      setError(`Error saving file: ${err}`);
     }
+    // }
   };
 
   const handleReset = () => {

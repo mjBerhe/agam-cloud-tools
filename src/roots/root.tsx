@@ -2,18 +2,9 @@ import { useState, useEffect } from "react";
 import { useOutputStore, useStatusStore } from "../stores";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-// import { TextShimmer } from '@/components/core/text-shimmer';
-
-// export function TextShimmerBasic() {
-//   return (
-//     <TextShimmer className="font-mono text-sm" duration={1}>
-//       Generating code...
-//     </TextShimmer>
-//   );
-// }
+import { motion } from "framer-motion";
 
 import { cn } from "../utils/styles";
-import { motion } from "framer-motion";
 import type { Script } from "../types/scripts";
 
 import ScriptOutput from "../components/scripts/ScriptOutput";
@@ -22,7 +13,6 @@ import SenBatchEditor from "../components/SenBatchEditor";
 import Log from "../components/Log";
 import SlurmOutput from "../components/SlurmOutput";
 
-// const tabs = ["Cloud Tools", "Config File", "Sen Batch File", "Log File", "Output Slurm"];
 const tabs = [
   { id: 0, label: "Cloud Tools" },
   { id: 1, label: "Config File" },
@@ -35,17 +25,39 @@ const scripts: Script[] = [
   "automate",
   "upload",
   "remote_run",
-  "monitor",
   "monitor_download",
   "cancel",
-  "output",
 ];
+
+const scriptPathMap: Record<Script, string> = {
+  automate:
+    "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto/1_Automate.sh",
+  upload:
+    "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto/2_1_Upload.sh",
+  remote_run:
+    "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto/3_RemoteRun.sh",
+  monitor_download:
+    "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto/4_1_Monitor_with_Download.sh",
+  cancel:
+    "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto/6_Cancel.sh",
+};
+
+const isDev = process.env.NODE_ENV === "development";
 
 export default function Root() {
   const { addOutput, clearOutput } = useOutputStore();
   const { startScript, completeScript, setError, resetStatus } = useStatusStore();
 
   const [selectedTab, setSelectedTab] = useState<number>(tabs[0].id);
+
+  const runShellScript = async (scriptName: Script, scriptPathOverride?: string) => {
+    try {
+      const args = isDev ? { scriptName, scriptPathOverride } : { scriptName };
+      return await invoke<string[]>("run_shell_script", args);
+    } catch (err) {
+      setError(scriptName, `Error executing script "${scriptName}": ${err}`);
+    }
+  };
 
   useEffect(() => {
     const unlistenFns: Record<
@@ -59,7 +71,7 @@ export default function Root() {
 
         // add cancel output to the monitor output
         if (scriptName === "cancel") {
-          addOutput("monitor", e.payload);
+          addOutput("monitor_download", e.payload);
         }
       });
 
@@ -98,17 +110,18 @@ export default function Root() {
     };
   }, []);
 
+  // whenever we open the app, check monitor_download
   useEffect(() => {
     const checkMonitorDownload = async () => {
       try {
         startScript("monitor_download");
-        const response = await invoke<string[]>("run_bash_script_test", {
-          scriptName: "monitor_download",
-        });
-        if (response.find((x) => x === "No Job ID found in log.log.")) {
+        const response = await runShellScript(
+          "monitor_download",
+          scriptPathMap["monitor_download"]
+        );
+        if (response?.find((x) => x === "No Job ID found in log.log.")) {
           resetStatus("monitor_download");
         }
-        // console.log(response);
       } catch (err) {
         setError("monitor_download", err as string);
       }
@@ -121,12 +134,7 @@ export default function Root() {
     clearOutput(script);
     startScript(script);
 
-    try {
-      await invoke("run_bash_script_test", { scriptName: script });
-    } catch (err) {
-      // do we need to complete if errored?
-      setError(script, err as string);
-    }
+    runShellScript(script, scriptPathMap[script]);
   };
 
   return (

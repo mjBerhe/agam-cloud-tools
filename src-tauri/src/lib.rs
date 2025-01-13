@@ -28,11 +28,11 @@ const CANCEL_SCRIPT: &str =
   "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/6_Cancel.sh";
 
 const LOG_FILE: &str =
-  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/log.log";
+  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto/log.log";
 const CONFIG_JSON_FILE: &str =
-  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/config.json";
+  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto/config.json";
 const SEN_BATCH_FILE: &str =
-  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/Sen_Batch.sh";
+  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto/Sen_Batch.sh";
 const SLURM_FOLDER: &str =
   "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/outputSlurm";
 
@@ -41,7 +41,7 @@ pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
     .invoke_handler(tauri::generate_handler![
-      run_bash_script_test,
+      run_shell_script,
       read_json_file,
       save_json_file,
       read_shell_file,
@@ -55,26 +55,19 @@ pub fn run() {
 }
 
 #[tauri::command]
-async fn run_bash_script_test(window: Window, script_name: String) -> Result<Vec<String>, String> {
-  let script_path: PathBuf;
-
-  if cfg!(debug_assertions) {
-    // dev mode
-    script_path = match script_name.as_str() {
-      //   "test" => PathBuf::from(TEST_SCRIPT),
-      "automate" => PathBuf::from(AUTOMATE_SCRIPT),
-      "upload" => PathBuf::from(UPLOAD_SCRIPT),
-      //   "upload_sh" => PathBuf::from(UPLOAD_SCRIPT_SH),
-      "remote_run" => PathBuf::from(REMOTE_RUN_SCRIPT),
-      "monitor" => PathBuf::from(MONITOR_SCRIPT),
-      "monitor_download" => PathBuf::from(MONITOR_DOWNLOAD_SCRIPT),
-      "download" => PathBuf::from(DOWNLOAD_SCRIPT),
-      "cancel" => PathBuf::from(CANCEL_SCRIPT),
-      _ => return Err(format!("Unsupported script name: {}", script_name)),
-    }
+async fn run_shell_script(
+  window: Window,
+  script_name: String,
+  script_path_override: Option<String>, // Optional argument for development mode
+) -> Result<Vec<String>, String> {
+  // Determine the script path
+  let script_path = if let Some(override_path) = script_path_override {
+    // Convert the override_path (String) to a PathBuf
+    PathBuf::from(override_path)
   } else {
+    // Production mode: derive the script path based on the executable's location
     let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
-    script_path = match script_name.as_str() {
+    match script_name.as_str() {
       "automate" => exe_path.parent().unwrap().join("1_Automate.sh"),
       "upload" => exe_path.parent().unwrap().join("2_1_Upload.sh"),
       "upload_sh" => exe_path.parent().unwrap().join("2_2_Upload_sh.sh"),
@@ -87,8 +80,8 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<Vec
       "download" => exe_path.parent().unwrap().join("5_Download.sh"),
       "cancel" => exe_path.parent().unwrap().join("6_Cancel.sh"),
       _ => return Err(format!("Unsupported script name: {}", script_name)),
-    };
-  }
+    }
+  };
 
   // getting the parent directory of where the script_path is located
   let script_dir = script_path
@@ -140,28 +133,6 @@ async fn run_bash_script_test(window: Window, script_name: String) -> Result<Vec
       (script_name.clone(), "Script completed"),
     )
     .map_err(|e| e.to_string())?;
-
-  // if running cancel, delete "Submitted batch job {7digits}" from log file
-  // if script_name == "cancel" {
-  //   let log_file_path = if cfg!(debug_assertions) {
-  //     PathBuf::from(LOG_FILE)
-  //   } else {
-  //     let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
-  //     exe_path.parent().unwrap().join("log.log")
-  //   };
-
-  //   // Read the log file
-  //   let contents = std::fs::read_to_string(&log_file_path).map_err(|e| e.to_string())?;
-
-  //   // Split the contents into lines and remove the last line
-  //   let mut lines: Vec<&str> = contents.lines().collect();
-  //   if !lines.is_empty() {
-  //     lines.pop(); // Remove the last line
-  //   }
-
-  //   // Write the modified contents back to the log file
-  //   std::fs::write(&log_file_path, lines.join("\n")).map_err(|e| e.to_string())?;
-  // }
 
   Ok(collected_output)
 }
