@@ -1,31 +1,17 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
+// use anyhow::{Context, Result};
 use regex::Regex;
 use std::env;
 use std::fs;
 use std::fs::File;
-use std::io::{BufRead, Read};
+use std::io::{BufRead, BufReader, Read};
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use tauri::Emitter;
 use tauri::Window;
 use winapi::um::winbase::CREATE_NO_WINDOW;
-
-const AUTOMATE_SCRIPT: &str =
-  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/1_Automate.sh";
-const UPLOAD_SCRIPT: &str =
-  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/2_1_Upload.sh";
-const REMOTE_RUN_SCRIPT: &str =
-  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/3_RemoteRun.sh";
-const MONITOR_SCRIPT: &str =
-  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/4_Monitor.sh";
-const MONITOR_DOWNLOAD_SCRIPT: &str =
-  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/4_1_Monitor_with_Download.sh";
-const DOWNLOAD_SCRIPT: &str =
-  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/5_Download.sh";
-const CANCEL_SCRIPT: &str =
-  "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto_Final/6_Cancel.sh";
 
 const LOG_FILE: &str =
   "C:/Users/mattberhe/pALM/pALM2.1te/pALMLiability/pALMLauncher/Cloud_Auto/log.log";
@@ -59,7 +45,7 @@ async fn run_shell_script(
   window: Window,
   script_name: String,
   script_path_override: Option<String>, // Optional argument for development mode
-) -> Result<Vec<String>, String> {
+) -> Result<(), String> {
   // Determine the script path
   let script_path = if let Some(override_path) = script_path_override {
     // Convert the override_path (String) to a PathBuf
@@ -98,35 +84,53 @@ async fn run_shell_script(
     .envs(env::vars()) // Pass the current environment variables
     .env("PYTHON_PATH", python_path) // Set the PYTHON_PATH environment variable if needed
     .stdout(Stdio::piped()) // Pipe stdout
+    .stderr(Stdio::piped()) // pipe stderr
     .creation_flags(CREATE_NO_WINDOW) // suppress console window from popping up after each script
     .spawn()
     .map_err(|e| e.to_string())?;
 
   let stdout = child.stdout.as_mut().ok_or("Failed to open stdout")?;
-  let reader = std::io::BufReader::new(stdout);
+  let stderr = child.stderr.as_mut().ok_or("Failed to capture stderr")?;
 
-  let mut collected_output = Vec::new(); // Collect output here
+  let stdout_reader = BufReader::new(stdout);
+  let stderr_reader = BufReader::new(stderr);
 
-  // Read lines from the script's output and emit as Tauri events
-  for line in reader.lines() {
+  // Emit lines from stdout
+  for line in stdout_reader.lines() {
     match line {
       Ok(output) => {
-        println!("Emitting from {}: {}", script_name, output); // Add this line to debug
-
-        collected_output.push(output.clone()); // Collect the output
-
+        println!("Stdout: {}", output); // Debugging
         window
           .emit(format!("script-output-{}", script_name).as_str(), output) // Emit event with output
           .map_err(|e| e.to_string())?;
       }
-      Err(e) => return Err(e.to_string()),
+      Err(e) => return Err(format!("Error reading stdout: {}", e)),
     }
   }
 
-  // Wait for the script to finish
-  child.wait().map_err(|e| e.to_string())?;
+  // Emit lines from stderr
+  for line in stderr_reader.lines() {
+    match line {
+      Ok(output) => {
+        println!("Stderr: {}", output); // Debugging
+        window
+          .emit(format!("script-error-{}", script_name).as_str(), output) // Emit event with output
+          .map_err(|e| e.to_string())?;
+      }
+      Err(e) => return Err(format!("Error reading stderr: {}", e)),
+    }
+  }
 
-  // Emit a final event indicating the script has finished
+  // Wait for the process to finish
+  let status = child.wait().map_err(|e| e.to_string())?;
+
+  // Emit a final event indicating the process has finished
+  let result_message = if status.success() {
+    "Process completed successfully"
+  } else {
+    "Process finished with errors"
+  };
+
   window
     .emit(
       format!("script-finished-{}", script_name.clone()).as_str(),
@@ -134,17 +138,11 @@ async fn run_shell_script(
     )
     .map_err(|e| e.to_string())?;
 
-  Ok(collected_output)
+  Ok(())
 }
 
 // Function to find the Python executable path
 fn find_python_path() -> Result<String, String> {
-  // let python_command = if cfg!(target_os = "windows") {
-  //     "where python"  // On Windows, use 'where'
-  // } else {
-  //     "which python"  // On Linux/macOS, use 'which'
-  // };
-
   // only testing on windows
   let python_command = "where python";
 

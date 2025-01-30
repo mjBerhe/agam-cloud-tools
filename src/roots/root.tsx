@@ -46,7 +46,7 @@ const isDev = process.env.NODE_ENV === "development";
 
 export default function Root() {
   const { addOutput, clearOutput } = useOutputStore();
-  const { startScript, completeScript, setError, resetStatus } = useStatusStore();
+  const { status, startScript, completeScript, setError, resetStatus } = useStatusStore();
 
   const [selectedTab, setSelectedTab] = useState<number>(tabs[0].id);
 
@@ -62,7 +62,11 @@ export default function Root() {
   useEffect(() => {
     const unlistenFns: Record<
       string,
-      { output: Promise<UnlistenFn>; finished: Promise<UnlistenFn> }
+      {
+        output: Promise<UnlistenFn>;
+        error: Promise<UnlistenFn>;
+        finished: Promise<UnlistenFn>;
+      }
     > = {};
 
     scripts.forEach((scriptName) => {
@@ -75,36 +79,48 @@ export default function Root() {
         }
       });
 
-      const unlistenFinished = listen<string>(`script-finished-${scriptName}`, () => {
-        if (scriptName === "cancel") {
-          // do not complete
-        } else if (scriptName === "monitor_download") {
-          // cancel script is only fully completed once monitor_download finishes
-          completeScript("cancel");
-          completeScript(scriptName);
-        } else if (scriptName === "automate") {
-          completeScript(scriptName);
-          resetStatus("upload");
-          resetStatus("remote_run");
-          resetStatus("monitor_download");
-        } else {
-          completeScript(scriptName);
-        }
+      const unlistenError = listen<string>(`script-error-${scriptName}`, (e) => {
+        setError(scriptName, e.payload);
+      });
 
-        // auto trigger monitor_download after remote_run is finished
-        if (scriptName === "remote_run") {
-          runScript("monitor_download");
+      const unlistenFinished = listen<string>(`script-finished-${scriptName}`, (e) => {
+        // if there was an error, don't complete and reset status
+        if (!status[scriptName].error) {
+          if (scriptName === "cancel") {
+            // do not complete
+          } else if (scriptName === "monitor_download") {
+            // cancel script is only fully completed once monitor_download finishes
+            completeScript("cancel");
+            completeScript(scriptName);
+          } else if (scriptName === "automate") {
+            completeScript(scriptName);
+            resetStatus("upload");
+            resetStatus("remote_run");
+            resetStatus("monitor_download");
+          } else {
+            completeScript(scriptName);
+          }
+
+          // auto trigger monitor_download after remote_run is finished
+          if (scriptName === "remote_run") {
+            runScript("monitor_download");
+          }
         }
       });
 
-      unlistenFns[scriptName] = { output: unlistenOutput, finished: unlistenFinished };
+      unlistenFns[scriptName] = {
+        output: unlistenOutput,
+        error: unlistenError,
+        finished: unlistenFinished,
+      };
     });
 
     // unlisten each listener event on cleanup
     return () => {
       scripts.forEach((scriptName) => {
-        const { output, finished } = unlistenFns[scriptName];
+        const { output, error, finished } = unlistenFns[scriptName];
         output.then((fn) => fn());
+        error.then((fn) => fn());
         finished.then((fn) => fn());
       });
     };

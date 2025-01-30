@@ -4,7 +4,7 @@ import { Script } from "../../types/scripts";
 import { cn } from "../../utils/styles";
 
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useOutputStore, useStatusStore } from "../../stores";
 import { Button } from "../ui/Button";
 import { TextEffect } from "../ui/TextEffect";
@@ -12,11 +12,6 @@ import { TextEffect } from "../ui/TextEffect";
 type ScriptTab = { name: string; scriptName: Script; id: number };
 
 const tabs: ScriptTab[] = [
-  // {
-  //   name: "Monitor",
-  //   scriptName: "monitor",
-  //   id: 0,
-  // },
   {
     name: "Automate",
     scriptName: "automate",
@@ -37,11 +32,6 @@ const tabs: ScriptTab[] = [
     scriptName: "monitor_download",
     id: 4,
   },
-  // {
-  //   name: "Download",
-  //   scriptName: "download",
-  //   id: 5,
-  // },
 ];
 
 const ScriptOutput: React.FC<{ runScript: (script: Script) => void }> = ({
@@ -55,6 +45,7 @@ const ScriptOutput: React.FC<{ runScript: (script: Script) => void }> = ({
   const { outputs } = useOutputStore();
 
   const output = outputs[selectedScript.scriptName];
+  const error = allStatuses[selectedScript.scriptName].error;
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -80,6 +71,8 @@ const ScriptOutput: React.FC<{ runScript: (script: Script) => void }> = ({
                       ? "bg-primary-500"
                       : allStatuses[tab.scriptName].isCompleted
                       ? "bg-[#3f834a]"
+                      : allStatuses[tab.scriptName].error
+                      ? "bg-red-500"
                       : "bg-gray-500"
                   )}
                 >
@@ -102,6 +95,8 @@ const ScriptOutput: React.FC<{ runScript: (script: Script) => void }> = ({
                     </svg>
                   ) : allStatuses[tab.scriptName].isCompleted ? (
                     <Check width={15} height={15} color="#74ec88" strokeWidth={3} />
+                  ) : allStatuses[tab.scriptName].error ? (
+                    <X width={12} height={12} color="white" strokeWidth={4} />
                   ) : (
                     ""
                   )}
@@ -112,6 +107,8 @@ const ScriptOutput: React.FC<{ runScript: (script: Script) => void }> = ({
                     <p className="text-sm/6 text-primary-400 font-medium">Running</p>
                   ) : allStatuses[tab.scriptName].isCompleted ? (
                     <p className="text-sm/6 font-medium text-[#74ec88]">Completed</p>
+                  ) : allStatuses[tab.scriptName].error ? (
+                    <p className="text-sm/6 font-medium text-red-500">Error</p>
                   ) : (
                     <p className="text-sm/6 text-gray-400 font-medium">Idle</p>
                   )}
@@ -197,6 +194,15 @@ const ScriptOutput: React.FC<{ runScript: (script: Script) => void }> = ({
                           {x}
                         </TextEffect>
                       ))}
+                      {error && (
+                        <TextEffect
+                          per="line"
+                          preset="slide"
+                          className="text-sm/6 text-red-500 font-light"
+                        >
+                          {error}
+                        </TextEffect>
+                      )}
                       <div ref={bottomRef}></div>
                     </div>
 

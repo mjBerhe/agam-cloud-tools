@@ -26,4 +26,4 @@ serde_json = "1"
 winapi = { version = "0.3", features = ["consoleapi", "errhandlingapi", "winbase", "winuser"] }
 winapi-util = { version = "0.1.9" }
 regex = "1.8" # or the latest version
-
+anyhow = "1.0"
