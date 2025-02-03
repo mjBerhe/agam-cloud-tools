@@ -83,7 +83,7 @@ export default function Root() {
         setError(scriptName, e.payload);
       });
 
-      const unlistenFinished = listen<string>(`script-finished-${scriptName}`, (e) => {
+      const unlistenFinished = listen<string>(`script-finished-${scriptName}`, () => {
         // if there was an error, don't complete and reset status
         if (!status[scriptName].error) {
           if (scriptName === "cancel") {

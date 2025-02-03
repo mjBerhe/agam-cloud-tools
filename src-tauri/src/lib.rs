@@ -46,6 +46,12 @@ async fn run_shell_script(
   script_name: String,
   script_path_override: Option<String>, // Optional argument for development mode
 ) -> Result<(), String> {
+  // Determine if the current script is one that requires MSYS64 bash (rsync-related)
+  let is_rsync_script = match script_name.as_str() {
+    "upload" | "upload_sh" | "monitor_download" | "download" => true,
+    _ => false,
+  };
+
   // Determine the script path
   let script_path = if let Some(override_path) = script_path_override {
     // Convert the override_path (String) to a PathBuf
@@ -74,9 +80,19 @@ async fn run_shell_script(
     .parent()
     .ok_or("Failed to get script directory")?;
 
+  // Dynamically find bash path, passing `is_rsync_script` to prioritize MSYS64 bash if needed
+  // let bash_command = match find_bash_path(false) {
+  //   Some(path) => path,
+  //   None => return Err("Bash executable not found".to_string()),
+  // };
   let bash_command = "C:/Program Files/Git/bin/bash.exe";
+  println!("Using bash from: {}", bash_command); // Debugging
+
   // Find the Python executable path
-  let python_path = find_python_path()?;
+  let python_path = match find_python_path() {
+    Ok(path) => path,
+    Err(e) => return Err(format!("Failed to find Python: {}", e)), // Handle error explicitly
+  };
 
   let mut child = Command::new(bash_command)
     .arg(script_path.clone())
@@ -139,6 +155,38 @@ async fn run_shell_script(
     .map_err(|e| e.to_string())?;
 
   Ok(())
+}
+
+fn find_bash_path(is_rsync: bool) -> Option<String> {
+  let output = Command::new("where")
+    .arg("bash")
+    .creation_flags(0x08000000) // CREATE_NO_WINDOW flag
+    .output()
+    .map_err(|e| format!("Failed to run 'where' command: {}", e))
+    .ok();
+
+  // If we found a valid bash path, return it
+  if let Some(output) = output {
+    if output.status.success() {
+      let bash_paths = String::from_utf8_lossy(&output.stdout);
+
+      if is_rsync {
+        // Prefer the MSYS2 bash path when rsync is used
+        let msys_bash = bash_paths.lines().find(|path| path.contains("msys64"));
+        if let Some(msys_path) = msys_bash {
+          return Some(msys_path.trim().to_string());
+        }
+      }
+
+      // For other scripts, return the first available bash path
+      if let Some(first_path) = bash_paths.lines().next() {
+        return Some(first_path.trim().to_string());
+      }
+    }
+  }
+
+  // If no bash executable found, return None
+  None
 }
 
 // Function to find the Python executable path
